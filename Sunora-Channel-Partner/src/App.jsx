@@ -36,12 +36,16 @@ export default function App(){
   async function loadData(){
     if(!supabase) return; setBusy(true); setError('');
     const results=await Promise.all([
-      supabase.from('partners').select('*, parent:partners!partners_parent_partner_id_fkey(id,partner_code,full_name)').order('created_at',{ascending:false}),
+      supabase.from('partners').select('*').order('created_at',{ascending:false}),
       supabase.from('sales').select('*, partner:partners!sales_partner_id_fkey(id,partner_code,full_name)').order('invoice_date',{ascending:false}),
       supabase.from('payments').select('*, partner:partners!payments_partner_id_fkey(id,partner_code,full_name)').order('payment_date',{ascending:false})
     ]);
     const firstError=results.find(r=>r.error)?.error; if(firstError) setError(firstError.message);
-    setPartners(results[0].data||[]);setSales(results[1].data||[]);setPayments(results[2].data||[]);setBusy(false);
+    const partnerRows = results[0].data || [];
+setPartners(partnerRows.map(p => ({ ...p, parent: partnerRows.find(x => x.id === p.parent_partner_id) || null })));
+setSales(results[1].data || []);
+setPayments(results[2].data || []);
+setBusy(false);
   }
   async function signIn(e){e.preventDefault();setBusy(true);setError('');const {error:e2}=await supabase.auth.signInWithPassword({email:loginEmail,password:loginPassword});if(e2)setError(e2.message);setBusy(false);}
   async function signOut(){await supabase.auth.signOut();setTab('Dashboard');}
