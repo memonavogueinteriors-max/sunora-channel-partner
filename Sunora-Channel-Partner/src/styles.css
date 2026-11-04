@@ -3,3 +3,54 @@
 @media(max-width:1150px){.main-area{padding:0 22px}.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.content-grid{grid-template-columns:1fr}.content-grid .panel{margin:0}.stats-grid .stat-card strong{font-size:25px}}
 @media(max-width:760px){.sidebar{transform:translateX(-100%);transition:transform .2s;width:275px;box-shadow:none}.sidebar.open{transform:translateX(0);box-shadow:20px 0 70px #0009}.scrim{display:block;position:fixed;inset:0;background:#0009;z-index:19}.mobile-menu,.mobile-close{display:inline-flex}.mobile-menu{margin-right:5px}.topbar{height:83px}.main-area{margin-left:0;width:100%;padding:0 15px}.topbar h1{font-size:22px}.top-actions{gap:4px}.live-dot{display:none}.top-add{font-size:0;padding:9px}.top-add svg{width:18px;height:18px}.welcome-panel{padding:21px}.welcome-panel h2{font-size:23px}.welcome-sun{width:66px;height:66px;flex-shrink:0}.welcome-sun svg{width:38px}.stats-grid{gap:9px}.stat-card{padding:13px}.stat-top{font-size:10px;align-items:flex-start}.stat-icon{width:28px;height:28px}.stat-card strong{font-size:20px!important}.stat-card small{font-size:9px}.panel{padding:14px;margin:18px 0}.panel-heading{align-items:flex-start}.panel-heading h3{font-size:18px}.panel-heading p{line-height:1.5}.panel-heading>.primary-btn{font-size:0;padding:9px}.panel-heading>.primary-btn svg{width:18px}.toolbar{align-items:stretch}.toolbar .secondary-btn{white-space:nowrap;font-size:0}.toolbar .secondary-btn svg{width:17px}.ledger-summary{gap:7px}.ledger-summary>div{padding:10px}.ledger-summary span{font-size:9px}.ledger-summary b{font-size:14px}.footer{font-size:9px}.form-grid{grid-template-columns:1fr}.form-grid>*{grid-column:1/-1}.modal{padding:17px}.auth-card,.setup-card{padding:23px}.auth-logo{width:190px;height:120px}}
 @media(max-width:390px){.stats-grid{grid-template-columns:1fr}.stat-card strong{font-size:25px!important}.welcome-sun{display:none}.topbar h1{font-size:19px}.breadcrumb{font-size:10px}}
+
+/* SUNORA IVORY & CHAMPAGNE GOLD THEME — visual overrides only */
+:root{color-scheme:light;color:#59472f;background:#f8f5ef;--bg:#f8f5ef;--surface:#fffdf9;--surface2:#f4eee3;--line:#e5d8c2;--gold:#b8872f;--gold2:#c99b43;--muted:#8b7b65;--text:#59472f;--green:#39764d;--red:#a64f43}
+body{background:var(--bg);color:var(--text)}
+.sidebar{background:#f3eee5;border-right-color:var(--line)}
+.brand{border-bottom-color:var(--line)}.brand div span{color:#a97822}
+.nav-label{color:#9a896f}.nav-item{color:#6f5d45}
+.nav-item:hover{background:#ebe2d3;color:#59472f}
+.nav-item.active{background:linear-gradient(90deg,#f1e5ce,#faf5eb);border-color:#ddc69e;color:#91651e}
+.nav-item.active svg{color:var(--gold)}
+.secure-note{background:#f8f1e4;border-color:#e5d3ae;color:#a97822}.secure-note b{color:#654f31}
+.user-block{border-top-color:var(--line)}
+.avatar,.person-avatar,.branch-avatar{background:#ead9b8;color:#8b621d}
+.topbar{border-bottom-color:var(--line)}.breadcrumb{color:#8b7b65}.breadcrumb span{color:#c4ad86}
+.topbar h1{color:#59472f}.live-dot{color:#39764d}
+.primary-btn{border-color:#b8872f;background:linear-gradient(135deg,#dfc17e,#c3953e);color:#fffdf8}
+.secondary-btn{border-color:#ddcfb7;background:#fffdf9;color:#725a37}.secondary-btn:hover{border-color:#b8872f}
+.icon-btn{color:#806d53}.icon-btn:hover{border-color:var(--line);background:#f2eadc;color:#59472f}
+.welcome-panel{border-color:#dfc99f;background:radial-gradient(ellipse at 90% 0%,#f1e2c4 0%,transparent 46%),linear-gradient(110deg,#fffdf8,#f5eddf)}
+.welcome-panel h2,.auth-card h1,.setup-card h1{color:#76551f}.welcome-panel p{color:#806f58}
+.welcome-sun{border-color:#ddc89f;color:#b8872f;background:#f8f0e1;box-shadow:0 0 45px #c49a4a20}
+.stat-card{border-color:var(--line);background:linear-gradient(150deg,#fffefa,#f7f1e7)}
+.stat-top{color:#806f58}.stat-icon{border-color:#e2d1ad;color:#a97822;background:#f7efdf}
+.stat-card strong{color:#59472f}.stat-card small{color:#8b7b65}
+.panel{border-color:var(--line);background:var(--surface)}.panel-heading h3{color:#765b35}
+.quick-actions button{color:#705e46}.quick-actions button:hover{background:#f6f0e5;border-color:#e5d8c2}
+.quick-actions b{color:#59472f}.quick-actions small{color:#8b7b65}
+.quick-icon{background:#f5ecd9;color:#a97822;border-color:#e5d4b2}
+th{color:#806f58;background:#f2eadc}th,td{border-bottom-color:#e9dfcf}
+td{color:#6f5d45}tbody tr:hover{background:#faf6ee}td b{color:#59472f}td small{color:#8b7b65}
+.code{color:#9b7027}.gold-text{color:#a97822}
+.status{background:#e8f1e8;color:#39764d}.status.inactive{background:#f5e8e5;color:#a64f43}
+.search-box{background:#fffdf9;border-color:#dfd2bd;color:#8b7b65}.search-box input{color:#59472f}
+.ledger-summary>div{background:#f8f1e5;border-color:#e6d6b8}.ledger-summary span{color:#806f58}.ledger-summary b{color:#9b7027}
+.branch-node{border-left-color:#d5bd91}.branch-card{border-color:#e5d8c2;background:#fffdf9}.branch-child-count{color:#9b7027}
+.empty-state{color:#8b7b65}.empty-state svg{color:#b99a63}.footer{color:#8b7b65}
+.modal-backdrop{background:#59472f55}.modal{background:#fffdf9;border-color:#dfc99f;box-shadow:0 25px 90px #59472f22}
+.modal h2{color:#765b35}.form-grid label,.form-stack label{color:#705e46}
+.form-grid input,.form-grid select,.form-stack input{background:#fffefa;border-color:#dfd2bd;color:#59472f}
+.form-grid input:focus,.form-grid select:focus,.form-stack input:focus{border-color:#b8872f;box-shadow:0 0 0 2px #b8872f22}
+.form-grid select option{background:#fffdf9;color:#59472f}
+.form-hint{background:#f8f1e5;border-color:#e6d6b8;color:#765b35}
+.alert.success{background:#edf5ed;border-color:#c9dfcb;color:#39764d}
+.alert.error{background:#fbefed;border-color:#e8c8c2;color:#a64f43}
+.alert.warning{background:#fbf5e8;border-color:#ead8ad;color:#89651f}
+.auth-page{background:radial-gradient(ellipse at 50% 5%,#f0e2c8 0%,transparent 42%),#f8f5ef}
+.auth-card,.setup-card,.center-card{border-color:#dfc99f;background:#fffdf9;box-shadow:0 25px 90px #59472f18}
+.muted{color:#8b7b65}.setup-card ol{color:#705e46}.setup-card code{color:#8d641e;background:#f5ecd9}
+.loading-screen{color:#806f58}.spinner{border-color:#e5d8c2;border-top-color:var(--gold)}
+.center-card p{color:#8b7b65}.scrim{background:#59472f55}
+@media(max-width:760px){.sidebar.open{box-shadow:20px 0 70px #59472f22}}
