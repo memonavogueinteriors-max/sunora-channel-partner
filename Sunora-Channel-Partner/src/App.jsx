@@ -16,10 +16,13 @@ const nav = [
 export default function App(){
   const [session,setSession]=useState(null), [profile,setProfile]=useState(null), [loading,setLoading]=useState(true);
   const [tab,setTab]=useState(initialTab), [mobileNav,setMobileNav]=useState(false), [search,setSearch]=useState('');
-  const [partners,setPartners]=useState([]), [sales,setSales]=useState([]), [payments,setPayments]=useState([]), [commissions,setCommissions]=useState([]), [productPrices,setProductPrices]=useState([]);
+  const [partners,setPartners]=useState([]), [sales,setSales]=useState([]), [payments,setPayments]=useState([]), [commissions,setCommissions]=useState([]), [productPrices,setProductPrices]=useState([]), [auditLogs,setAuditLogs]=useState([]);
   const [busy,setBusy]=useState(false), [notice,setNotice]=useState(''), [error,setError]=useState('');
   const [loginEmail,setLoginEmail]=useState(''), [loginPassword,setLoginPassword]=useState('');
   const [showPartner,setShowPartner]=useState(false), [showSale,setShowSale]=useState(false), [showPayment,setShowPayment]=useState(false);
+  const [selectedCommission,setSelectedCommission]=useState(null), [commissionDecision,setCommissionDecision]=useState('approved'), [approvalComments,setApprovalComments]=useState('');
+  const [selectedRateCommission,setSelectedRateCommission]=useState(null), [manualRate,setManualRate]=useState('');
+  const [selectedProject,setSelectedProject]=useState(null), [projectReview,setProjectReview]=useState({final_client_payment_received:false,final_deliverables_submitted:false,qc_passed:false,client_accepted:false,completion_comments:''});
   const [partnerForm,setPartnerForm]=useState({full_name:'',email:'',phone:'',date_of_birth:'',partner_type:'Interior Designer',parent_partner_id:''});
   const [saleForm,setSaleForm]=useState({partner_id:'',invoice_number:'',invoice_date:new Date().toISOString().slice(0,10),country:'United Arab Emirates',invoice_currency:'AED',panel_size:'60x60',product_description:'Sunora Wellness Panel',quantity:'1',unit_price:String(900*USD_TO_AED),additional_cost_description:'',additional_cost_amount:'0',savings_rate:'10',notes:''});
   const [paymentForm,setPaymentForm]=useState({partner_id:'',amount:'',payment_date:new Date().toISOString().slice(0,10),reference:'',notes:''});
@@ -34,17 +37,19 @@ export default function App(){
     setLoading(true); setError('');
     const {data,error:e}=await supabase.from('profiles').select('*').eq('id',userId).maybeSingle();
     if(e) setError(e.message); setProfile(data||null); setLoading(false);
-    if(data) await loadData();
+    if(data) await loadData(data.role);
   }
-  async function loadData(){
+  async function loadData(userRole=profile?.role){
     if(!supabase) return; setBusy(true); setError('');
-    const results=await Promise.all([
+    const requests=[
       supabase.from('partners').select('*').order('created_at',{ascending:false}),
       supabase.from('sales').select('*, partner:partners!sales_partner_id_fkey(id,partner_code,full_name)').order('invoice_date',{ascending:false}),
       supabase.from('payments').select('*, partner:partners!payments_partner_id_fkey(id,partner_code,full_name)').order('payment_date',{ascending:false}),
-      supabase.from('sale_commissions').select('*, partner:partners!sale_commissions_partner_id_fkey(id,partner_code,full_name), sale:sales!sale_commissions_sale_id_fkey(id,invoice_number,invoice_date)').order('created_at',{ascending:false}),
+      supabase.from('sale_commissions').select('*, partner:partners!sale_commissions_partner_id_fkey(id,partner_code,full_name), sale:sales!sale_commissions_sale_id_fkey(id,invoice_number,invoice_date,final_client_payment_received,final_deliverables_submitted,qc_passed,client_accepted,completion_comments,completion_approved_by,completion_approved_at)').order('created_at',{ascending:false}),
       supabase.from('sunora_product_prices').select('*').eq('is_active',true).order('panel_size')
-    ]);
+    ];
+    if(userRole==='admin') requests.push(supabase.from('sunora_audit_log').select('*').order('created_at',{ascending:false}).limit(100));
+    const results=await Promise.all(requests);
     const firstError=results.find(r=>r.error)?.error; if(firstError) setError(firstError.message);
     const partnerRows = results[0].data || [];
 setPartners(partnerRows.map(p => ({ ...p, parent: partnerRows.find(x => x.id === p.parent_partner_id) || null })));
@@ -52,12 +57,14 @@ setSales(results[1].data || []);
 setPayments(results[2].data || []);
 setCommissions(results[3].data || []);
 setProductPrices(results[4].data || []);
+setAuditLogs(userRole==='admin' ? (results[5]?.data || []) : []);
 setBusy(false);
   }
   async function signIn(e){e.preventDefault();setBusy(true);setError('');const {error:e2}=await supabase.auth.signInWithPassword({email:loginEmail,password:loginPassword});if(e2)setError(e2.message);setBusy(false);}
   async function signOut(){await supabase.auth.signOut();setTab('Dashboard');}
   function flash(message){setNotice(message);setTimeout(()=>setNotice(''),4500);}
   const isStaff=profile?.role==='admin'||profile?.role==='staff';
+  const isAdmin=profile?.role==='admin';
   const visiblePartners=useMemo(()=>partners.filter(p=>[p.full_name,p.partner_code,p.email,p.phone].some(v=>String(v||'').toLowerCase().includes(search.toLowerCase()))),[partners,search]);
   const totalSales=sales.reduce((s,x)=>s+toAED(x.invoice_amount,x.invoice_currency||'AED',x.exchange_rate_to_aed),0);
   const totalSavings=sales.reduce((s,x)=>s+toAED(x.savings_amount,x.invoice_currency||'AED',x.exchange_rate_to_aed),0);
@@ -138,6 +145,72 @@ setBusy(false);
     if(followupErrors.length){setError(`Invoice ${sale.invoice_number} was saved, but follow-up records need attention: ${followupErrors.join('; ')}`);return;}
     flash(tier.rate===null?'Invoice saved. Commission rate above 150 panels requires manual approval.':'Invoice and commission record saved. Commission is recorded, not yet approved or payable.');
   }
+  async function saveCommissionDecision(e){
+    e.preventDefault();
+    if(!isAdmin||!selectedCommission) return;
+    if(commissionDecision==='rejected'&&!approvalComments.trim()){setError('Please enter a rejection reason.');return;}
+    setBusy(true);setError('');
+    const {error:e2}=await supabase.from('sale_commissions').update({
+      approval_status:commissionDecision,
+      approval_comments:approvalComments.trim()||null,
+      updated_at:new Date().toISOString()
+    }).eq('id',selectedCommission.id);
+    setBusy(false);
+    if(e2){setError(e2.message);return;}
+    setSelectedCommission(null);setApprovalComments('');
+    await loadData();
+    flash(commissionDecision==='approved'?'Commission approved. Eligibility is checked separately.':'Commission rejected. The reason has been recorded.');
+  }
+  async function saveManualRate(e){
+    e.preventDefault();
+    if(!isAdmin||!selectedRateCommission) return;
+    const rate=Number(manualRate);
+    if(!Number.isFinite(rate)||rate<0||rate>100){setError('Enter a commission rate between 0 and 100.');return;}
+    const amount=Number((Number(selectedRateCommission.commissionable_base_amount||0)*rate/100).toFixed(2));
+    setBusy(true);setError('');
+    const {error:e2}=await supabase.from('sale_commissions').update({
+      commission_rate:rate,
+      commission_amount:amount,
+      rate_status:'manually_approved',
+      updated_at:new Date().toISOString()
+    }).eq('id',selectedRateCommission.id);
+    setBusy(false);
+    if(e2){setError(e2.message);return;}
+    setSelectedRateCommission(null);setManualRate('');
+    await loadData();
+    flash('Manual commission rate approved. You can now approve or reject this commission.');
+  }
+  async function saveProjectReview(e){
+    e.preventDefault();
+    if(!isAdmin||!selectedProject) return;
+    setBusy(true);setError('');
+    const {error:e2}=await supabase.from('sales').update({
+      final_client_payment_received:projectReview.final_client_payment_received,
+      final_deliverables_submitted:projectReview.final_deliverables_submitted,
+      qc_passed:projectReview.qc_passed,
+      client_accepted:projectReview.client_accepted,
+      completion_comments:projectReview.completion_comments.trim()||null
+    }).eq('id',selectedProject.id);
+    setBusy(false);
+    if(e2){setError(e2.message);return;}
+    setSelectedProject(null);
+    await loadData();
+    flash('Project completion review saved. Commission eligibility has been recalculated.');
+  }
+  function openCommissionDecision(c,decision){
+    setSelectedCommission(c);setCommissionDecision(decision);setApprovalComments(c.approval_comments||'');
+  }
+  function openProjectReview(c){
+    const s=c.sale||{};
+    setSelectedProject({id:s.id,invoice_number:s.invoice_number,commission_id:c.id});
+    setProjectReview({
+      final_client_payment_received:!!s.final_client_payment_received,
+      final_deliverables_submitted:!!s.final_deliverables_submitted,
+      qc_passed:!!s.qc_passed,
+      client_accepted:!!s.client_accepted,
+      completion_comments:s.completion_comments||''
+    });
+  }
   async function addPayment(e){e.preventDefault();setBusy(true);setError('');const {error:e2}=await supabase.from('payments').insert({...paymentForm,amount:Number(paymentForm.amount)});setBusy(false);if(e2){setError(e2.message);return;}setShowPayment(false);setPaymentForm({partner_id:'',amount:'',payment_date:new Date().toISOString().slice(0,10),reference:'',notes:''});await loadData();flash('Payment recorded.');}
   function exportCsv(){const rows=tab==='Sales & Invoices'?scopedSales:tab==='Payments'?scopedPayments:tab==='Commission Ledger'?(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)):scopedPartners;const csv=rows.map(row=>Object.entries(row).map(([,v])=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`sunora-${tab.toLowerCase().replaceAll(' ','-')}.csv`;a.click();URL.revokeObjectURL(a.href);}
 
@@ -154,7 +227,7 @@ setBusy(false);
       {tab==='Channel Partners'&&<section className="panel"><PanelHeading title="Channel partners" subtitle={`${visiblePartners.length} matching records`} action={isStaff&&<button className="primary-btn" onClick={()=>setShowPartner(true)}><Plus size={16}/> Register partner</button>}/><Toolbar search={search} setSearch={setSearch} exportCsv={exportCsv}/><PartnersTable rows={visiblePartners} onSelect={p=>{setSearch(p.partner_code);}}/></section>}
       {tab==='Referral Network'&&<section className="panel"><PanelHeading title="Referral network" subtitle="Parent-child relationships across the partner network"/><div className="branch-list">{(isStaff?partners:scopedPartners).filter(p=>!p.parent_partner_id||(isStaff&&!partners.some(x=>x.id===p.parent_partner_id))).map(p=><BranchNode key={p.id} partner={p} all={isStaff?partners:scopedPartners} depth={0}/>)}</div></section>}
       {tab==='Sales & Invoices'&&<section className="panel"><PanelHeading title="Sales & invoices" subtitle="Invoice references entered from Zoho Books" action={isStaff&&<button className="primary-btn" onClick={()=>setShowSale(true)}><Plus size={16}/> Record invoice</button>}/><Toolbar search={search} setSearch={setSearch} exportCsv={exportCsv}/><SalesTable rows={(isStaff?sales:scopedSales).filter(s=>[s.invoice_number,s.partner?.partner_code,s.partner?.full_name,s.product_description].some(v=>String(v||'').toLowerCase().includes(search.toLowerCase())))}/></section>}
-      {tab==='Commission Ledger'&&<section className="panel"><PanelHeading title="Commission ledger" subtitle="Per-invoice commission, calculated before VAT"/><div className="ledger-summary commission-summary"><div><span>Commission records</span><b>{(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)).length}</b></div><div><span>Awaiting manual rate</span><b>{(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)).filter(c=>c.rate_status==='awaiting_manual_rate').length}</b></div><div><span>Approved</span><b>{(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)).filter(c=>c.approval_status==='approved').length}</b></div></div><div className="table-wrap"><table><thead><tr><th>Invoice</th><th>Partner</th><th>Panels</th><th>Tier</th><th>Commission base</th><th>Rate</th><th>Commission</th><th>Approval</th><th>Eligibility</th></tr></thead><tbody>{(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)).map(c=><tr key={c.id}><td className="code">{c.sale?.invoice_number||'—'}</td><td><b>{c.partner?.full_name||'—'}</b><small>{c.partner?.partner_code}</small></td><td>{c.panel_quantity}</td><td>{c.tier_code==='manual_over_150'?'Manual >150':c.tier_code.replaceAll('_',' ')}</td><td>{money(c.commissionable_base_amount,c.commission_currency)}</td><td>{c.commission_rate===null?'Pending':`${c.commission_rate}%`}</td><td className="gold-text">{c.commission_amount===null?'Pending':money(c.commission_amount,c.commission_currency)}</td><td><span className={`status ${c.approval_status==='approved'?'':'inactive'}`}>{c.approval_status}</span></td><td>{c.eligibility_status.replaceAll('_',' ')}</td></tr>)}</tbody></table>{!(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)).length&&<Empty text="No commission records yet. New invoices will appear here."/>}</div></section>}
+      {tab==='Commission Ledger'&&<section className="panel"><PanelHeading title="Commission ledger" subtitle="Per-invoice commission, calculated before VAT"/><div className="ledger-summary commission-summary"><div><span>Commission records</span><b>{(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)).length}</b></div><div><span>Awaiting manual rate</span><b>{(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)).filter(c=>c.rate_status==='awaiting_manual_rate').length}</b></div><div><span>Approved</span><b>{(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)).filter(c=>c.approval_status==='approved').length}</b></div></div><div className="table-wrap"><table><thead><tr><th>Invoice</th><th>Partner</th><th>Panels</th><th>Tier</th><th>Commission base</th><th>Rate</th><th>Commission</th><th>Approval</th><th>Eligibility</th>{isAdmin&&<th>Admin actions</th>}</tr></thead><tbody>{(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)).map(c=><tr key={c.id}><td className="code">{c.sale?.invoice_number||'—'}</td><td><b>{c.partner?.full_name||'—'}</b><small>{c.partner?.partner_code}</small></td><td>{c.panel_quantity}</td><td>{c.tier_code==='manual_over_150'?'Manual >150':c.tier_code.replaceAll('_',' ')}</td><td>{money(c.commissionable_base_amount,c.commission_currency)}</td><td>{c.commission_rate===null?'Pending':`${c.commission_rate}%`}</td><td className="gold-text">{c.commission_amount===null?'Pending':money(c.commission_amount,c.commission_currency)}</td><td><span className={`status ${c.approval_status==='approved'?'':c.approval_status==='rejected'?'inactive':'pending'}`}>{c.approval_status}</span>{c.approval_comments&&<small>{c.approval_comments}</small>}</td><td><span className={`status ${c.eligibility_status==='eligible'?'':'inactive'}`}>{c.eligibility_status.replaceAll('_',' ')}</span></td>{isAdmin&&<td><div className="admin-actions">{c.rate_status==='awaiting_manual_rate'&&c.approval_status==='recorded'&&<button className="mini-btn" onClick={()=>{setSelectedRateCommission(c);setManualRate('');}}>Set rate</button>}{c.approval_status==='recorded'&&<><button className="mini-btn" disabled={c.rate_status==='awaiting_manual_rate'||c.commission_amount===null} onClick={()=>openCommissionDecision(c,'approved')}>Approve</button><button className="mini-btn danger" onClick={()=>openCommissionDecision(c,'rejected')}>Reject</button></>}<button className="mini-btn" onClick={()=>openProjectReview(c)}>Project review</button></div></td>}</tr>)}</tbody></table>{!(isStaff?commissions:commissions.filter(c=>c.partner_id===ownPartner?.id)).length&&<Empty text="No commission records yet. New invoices will appear here."/>}</div>{isAdmin&&<div className="audit-panel"><PanelHeading title="Approval & completion history" subtitle="Latest recorded admin actions"/>{auditLogs.filter(a=>['sale_commission','sale'].includes(a.entity_type)).slice(0,12).length?<div className="audit-list">{auditLogs.filter(a=>['sale_commission','sale'].includes(a.entity_type)).slice(0,12).map(a=><div className="audit-item" key={a.id}><div><b>{String(a.action||'').replaceAll('_',' ')}</b><small>{a.entity_type} · {a.entity_id} · By {a.actor_id===session?.user?.id?(profile.full_name||'Current admin'):(a.actor_id||'System')}</small></div><time>{new Date(a.created_at).toLocaleString()}</time><details><summary>Details</summary><pre>{JSON.stringify(a.details,null,2)}</pre></details></div>)}</div>:<Empty text="No approval or completion actions have been recorded yet."/>}</div>}</section>}
       {tab==='Savings Ledger'&&<section className="panel"><PanelHeading title="Channel Partner Savings" subtitle="Savings accrue separately and are never deducted from invoice totals"/><div className="ledger-summary"><div><span>Total earned</span><b>{money(isStaff?totalSavings:effectiveSavings)}</b></div><div><span>Total paid</span><b>{money(isStaff?totalPaid:effectivePaid)}</b></div><div><span>Outstanding</span><b>{money(isStaff?totalDue:Math.max(0,effectiveSavings-effectivePaid))}</b></div></div><div className="table-wrap"><table><thead><tr><th>Invoice</th><th>Partner</th><th>Date</th><th>Invoice amount</th><th>Rate</th><th>Savings</th></tr></thead><tbody>{(isStaff?sales:scopedSales).map(s=><tr key={s.id}><td className="code">{s.invoice_number}</td><td><b>{s.partner?.full_name||'—'}</b><small>{s.partner?.partner_code}</small></td><td>{dateLabel(s.invoice_date)}</td><td>{money(s.invoice_amount,s.invoice_currency||'AED')}</td><td>{s.savings_rate}%</td><td className="gold-text">{money(s.savings_amount,s.invoice_currency||'AED')}</td></tr>)}</tbody></table>{!sales.length&&<Empty text="No savings entries yet."/>}</div></section>}
       {tab==='Payments'&&<section className="panel"><PanelHeading title="Payments & settlements" subtitle="Manual payment history against earned savings" action={isStaff&&<button className="primary-btn" onClick={()=>setShowPayment(true)}><Plus size={16}/> Record payment</button>}/><Toolbar search={search} setSearch={setSearch} exportCsv={exportCsv}/><div className="table-wrap"><table><thead><tr><th>Partner</th><th>Payment date</th><th>Amount</th><th>Reference</th><th>Notes</th></tr></thead><tbody>{(isStaff?payments:scopedPayments).filter(p=>[p.partner?.full_name,p.partner?.partner_code,p.reference].some(v=>String(v||'').toLowerCase().includes(search.toLowerCase()))).map(p=><tr key={p.id}><td><b>{p.partner?.full_name||'—'}</b><small>{p.partner?.partner_code}</small></td><td>{dateLabel(p.payment_date)}</td><td className="gold-text">{money(p.amount)}</td><td>{p.reference||'—'}</td><td>{p.notes||'—'}</td></tr>)}</tbody></table>{!payments.length&&<Empty text="No payments recorded yet."/>}</div></section>}
       <footer className="footer"><span>© {new Date().getFullYear()} Sunora · Your Wellness Sun</span><span><ShieldCheck size={14}/> Private company workspace</span></footer>
@@ -187,6 +260,9 @@ setBusy(false);
       <div className="form-hint full-field"><Wallet size={17}/> Legacy savings estimate: <b>{money(invoiceTotal*Number(saleForm.savings_rate||0)/100,saleForm.invoice_currency)}</b>. This is separate from the new commission ledger.</div>
       <div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setShowSale(false)}>Cancel</button><button className="primary-btn" disabled={busy||invoiceQty<1||invoiceUnit<0||extraCost<0}>{busy?'Saving…':'Save invoice & commission'}</button></div>
     </form></Modal>}
+    {selectedRateCommission&&<Modal title="Approve manual commission rate" close={()=>setSelectedRateCommission(null)}><form className="form-grid" onSubmit={saveManualRate}><div className="form-hint full-field"><b>{selectedRateCommission.sale?.invoice_number||'Invoice'}</b> · {selectedRateCommission.panel_quantity} panels · Base {money(selectedRateCommission.commissionable_base_amount,selectedRateCommission.commission_currency)}. This rate requires Admin approval.</div><label className="full-field">Commission rate (%) *<input required type="number" min="0" max="100" step="0.01" value={manualRate} onChange={e=>setManualRate(e.target.value)} placeholder="Enter approved rate"/></label><div className="form-hint full-field">Calculated commission: {money(Number(selectedRateCommission.commissionable_base_amount||0)*Number(manualRate||0)/100,selectedRateCommission.commission_currency)}</div><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setSelectedRateCommission(null)}>Cancel</button><button className="primary-btn" disabled={busy||manualRate===''||Number(manualRate)<0||Number(manualRate)>100}>{busy?'Saving…':'Approve rate'}</button></div></form></Modal>}
+    {selectedCommission&&<Modal title={commissionDecision==='approved'?'Approve commission':'Reject commission'} close={()=>setSelectedCommission(null)}><form className="form-grid" onSubmit={saveCommissionDecision}><div className="form-hint full-field"><b>{selectedCommission.sale?.invoice_number||'Invoice'}</b> · {selectedCommission.partner?.full_name||'Partner'} · {selectedCommission.commission_amount===null?'Manual rate pending':money(selectedCommission.commission_amount,selectedCommission.commission_currency)}<br/>Approval does not itself make the commission payable. Project completion must be verified separately.</div><label className="full-field">{commissionDecision==='rejected'?'Rejection reason *':'Approval comments (optional)'}<textarea rows="4" value={approvalComments} onChange={e=>setApprovalComments(e.target.value)} placeholder={commissionDecision==='rejected'?'Explain why this commission is rejected…':'Optional approval note'}/></label><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setSelectedCommission(null)}>Cancel</button><button className="primary-btn" disabled={busy||(commissionDecision==='rejected'&&!approvalComments.trim())}>{busy?'Saving…':commissionDecision==='approved'?'Confirm approval':'Confirm rejection'}</button></div></form></Modal>}
+    {selectedProject&&<Modal title={`Project completion · ${selectedProject.invoice_number||''}`} close={()=>setSelectedProject(null)}><form className="form-grid" onSubmit={saveProjectReview}><div className="form-hint full-field">All four checks must be confirmed before the linked approved commission can become eligible. Only Admin can change these checks.</div>{[['final_client_payment_received','Final client payment received'],['final_deliverables_submitted','Final deliverables submitted'],['qc_passed','Quality control passed'],['client_accepted','Client acceptance confirmed']].map(([key,label])=><label className="completion-check full-field" key={key}><input type="checkbox" checked={projectReview[key]} onChange={e=>setProjectReview(v=>({...v,[key]:e.target.checked}))}/><span>{label}</span></label>)}<label className="full-field">Completion notes<textarea rows="4" value={projectReview.completion_comments} onChange={e=>setProjectReview(v=>({...v,completion_comments:e.target.value}))} placeholder="Add QC, delivery or client acceptance notes…"/></label><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setSelectedProject(null)}>Cancel</button><button className="primary-btn" disabled={busy}>{busy?'Saving…':'Save project review'}</button></div></form></Modal>}
     {showPayment&&<Modal title="Record partner payment" close={()=>setShowPayment(false)}><form className="form-grid" onSubmit={addPayment}><label className="full-field">Channel partner *<select required value={paymentForm.partner_id} onChange={e=>setPaymentForm({...paymentForm,partner_id:e.target.value})}><option value="">Select partner</option>{partners.map(p=><option key={p.id} value={p.id}>{p.partner_code} — {p.full_name}</option>)}</select></label><label>Amount (AED) *<input required min="0.01" step="0.01" type="number" value={paymentForm.amount} onChange={e=>setPaymentForm({...paymentForm,amount:e.target.value})}/></label><label>Payment date *<input required type="date" value={paymentForm.payment_date} onChange={e=>setPaymentForm({...paymentForm,payment_date:e.target.value})}/></label><label>Payment reference<input value={paymentForm.reference} onChange={e=>setPaymentForm({...paymentForm,reference:e.target.value})} placeholder="Transfer / receipt number"/></label><label>Notes<input value={paymentForm.notes} onChange={e=>setPaymentForm({...paymentForm,notes:e.target.value})}/></label><div className="form-hint"><CircleAlert size={17}/> Ensure the payment amount does not exceed the partner's approved payable balance. Verify the balance before recording.</div><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setShowPayment(false)}>Cancel</button><button className="primary-btn" disabled={busy}>{busy?'Saving…':'Record payment'}</button></div></form></Modal>}
   </div>;
 }
