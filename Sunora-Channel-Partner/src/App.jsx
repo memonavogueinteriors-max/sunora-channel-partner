@@ -6,7 +6,7 @@ import {
   CreditCard, FileSpreadsheet, LogOut, Search, Plus, RefreshCw,
   Menu, X, ArrowUpRight, TrendingUp, UserRound, Download,
   ShieldCheck, CircleAlert, CheckCircle2, BadgePercent, Calculator,
-  CalendarDays, ChartNoAxesCombined, ClipboardList
+  CalendarDays, ChartNoAxesCombined, ClipboardList, Bell
 } from 'lucide-react';
 
 const money = (n, currency = 'AED') =>
@@ -100,6 +100,7 @@ export default function App() {
   const [projectCosts, setProjectCosts] = useState([]);
   const [productPrices, setProductPrices] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -189,6 +190,7 @@ export default function App() {
         setCommissionPayouts([]);
         setProjectCosts([]);
         setAuditLogs([]);
+        setNotifications([]);
         setTab('Dashboard');
         setLoading(false);
       }
@@ -259,6 +261,13 @@ export default function App() {
           .order('created_at', { ascending: false })
           .limit(100)
       );
+
+      requests.push(
+        supabase.from('notifications')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100)
+      );
     }
 
     const results = await Promise.all(requests);
@@ -282,6 +291,7 @@ export default function App() {
     setCommissionPayouts(results[5].data || []);
     setProjectCosts(results[6].data || []);
     setAuditLogs(userRole === 'admin' ? (results[7]?.data || []) : []);
+    setNotifications(userRole === 'admin' ? (results[8]?.data || []) : []);
 
     setBusy(false);
   }
@@ -947,6 +957,28 @@ export default function App() {
     flash('Payment recorded.');
   }
 
+  async function markNotificationRead(id) {
+    if (!isAdmin) return;
+
+    const readAt = new Date().toISOString();
+
+    const { error: updateError } = await supabase
+      .from('notifications')
+      .update({ read_at: readAt })
+      .eq('id', id);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    setNotifications(current =>
+      current.map(n => n.id === id ? { ...n, read_at: readAt } : n)
+    );
+
+    flash('Notification marked as read.');
+  }
+
   function exportCsv() {
     let rows = [];
 
@@ -1083,9 +1115,12 @@ export default function App() {
 
   const visibleNav = [
     ...nav,
+    ...(isAdmin ? [{ name: 'Notifications', icon: Bell }] : []),
     ...(isAdmin ? [{ name: 'Monthly Reports', icon: ChartNoAxesCombined }] : []),
     ...(isPartner ? [{ name: 'My Monthly Statement', icon: ClipboardList }] : [])
   ];
+
+  const unreadNotificationCount = notifications.filter(n => !n.read_at).length;
 
   return (
     <div className="app-shell">
@@ -1119,8 +1154,13 @@ export default function App() {
               >
                 <Icon size={18} />
                 <span>{item.name}</span>
+
                 {item.name === 'Channel Partners' && (
                   <span className="nav-count">{scopedPartners.length}</span>
+                )}
+
+                {item.name === 'Notifications' && unreadNotificationCount > 0 && (
+                  <span className="nav-count">{unreadNotificationCount}</span>
                 )}
               </button>
             );
@@ -1437,6 +1477,66 @@ export default function App() {
               </table>
               {!scopedPayments.length && <Empty text="No payments recorded yet." />}
             </div>
+          </section>
+        )}
+
+        {/* ADMIN-ONLY NOTIFICATIONS */}
+        {tab === 'Notifications' && isAdmin && (
+          <section className="panel">
+            <PanelHeading
+              title="Admin Notifications"
+              subtitle="Important activity across the Sunora partner portal"
+              action={
+                <button
+                  className="secondary-btn"
+                  onClick={() => loadData('admin')}
+                  disabled={busy}
+                >
+                  <RefreshCw size={16} /> Refresh
+                </button>
+              }
+            />
+
+            {notifications.length ? (
+              <div className="audit-list">
+                {notifications.map(n => (
+                  <div className="audit-item" key={n.id}>
+                    <div>
+                      <b>{n.title || 'Sunora notification'}</b>
+                      <small>{String(n.event_type || '').replaceAll('_', ' ')}</small>
+                      <p>{n.message || 'No additional details.'}</p>
+
+                      {n.related_table && (
+                        <small>
+                          Related: {n.related_table}
+                          {n.related_id ? ` · ${n.related_id}` : ''}
+                        </small>
+                      )}
+                    </div>
+
+                    <time>{new Date(n.created_at).toLocaleString()}</time>
+
+                    <div>
+                      {n.read_at ? (
+                        <span className="status">Read</span>
+                      ) : (
+                        <>
+                          <span className="status pending">Unread</span>
+                          <button
+                            className="mini-btn"
+                            onClick={() => markNotificationRead(n.id)}
+                          >
+                            Mark as read
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Empty text="No admin notifications yet." />
+            )}
           </section>
         )}
 
