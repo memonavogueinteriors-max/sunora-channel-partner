@@ -54,3 +54,13 @@ td{color:#6f5d45}tbody tr:hover{background:#faf6ee}td b{color:#59472f}td small{c
 .loading-screen{color:#806f58}.spinner{border-color:#e5d8c2;border-top-color:var(--gold)}
 .center-card p{color:#8b7b65}.scrim{background:#59472f55}
 @media(max-width:760px){.sidebar.open{box-shadow:20px 0 70px #59472f22}}
+
+/* Sunora invoice and commission upgrade */
+.invoice-breakdown{display:grid;gap:10px;padding:15px 16px;border:1px solid #e6d6b8;border-radius:10px;background:#fbf7ef;color:#705e46}
+.invoice-breakdown>div{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:13px}
+.invoice-breakdown .breakdown-heading{justify-content:flex-start;font-weight:700;color:#765b35;padding-bottom:4px}
+.invoice-breakdown .breakdown-total{border-top:1px solid #dfcfad;padding-top:11px;font-size:15px;color:#59472f}
+.invoice-breakdown .breakdown-total b{color:#94681f}
+.invoice-breakdown .breakdown-commission{background:#f4ead5;border:1px solid #e5d2a9;border-radius:7px;padding:10px;color:#765b35}
+.invoice-breakdown small{font-size:11px;line-height:1.5;color:#8b7b65}
+@media(max-width:600px){.invoice-breakdown>div{align-items:flex-start}.invoice-breakdown>div span{max-width:65%}}
