@@ -64,3 +64,26 @@ td{color:#6f5d45}tbody tr:hover{background:#faf6ee}td b{color:#59472f}td small{c
 .invoice-breakdown .breakdown-commission{background:#f4ead5;border:1px solid #e5d2a9;border-radius:7px;padding:10px;color:#765b35}
 .invoice-breakdown small{font-size:11px;line-height:1.5;color:#8b7b65}
 @media(max-width:600px){.invoice-breakdown>div{align-items:flex-start}.invoice-breakdown>div span{max-width:65%}}
+
+
+/* Phase 2 admin commission workflow */
+.admin-actions{display:flex;flex-wrap:wrap;gap:6px;min-width:150px}
+.mini-btn{border:1px solid #dfc99f;background:#fbf7ef;color:#765b35;border-radius:7px;padding:6px 9px;font-size:11px;font-weight:700;cursor:pointer}
+.mini-btn:hover{background:#f2e6cf}
+.mini-btn:disabled{opacity:.45;cursor:not-allowed}
+.mini-btn.danger{border-color:#e8c8c2;background:#fbefed;color:#a64f43}
+.status.pending{background:#f8f1e5;color:#89651f}
+.audit-panel{margin-top:26px;padding-top:20px;border-top:1px solid #e9dfcf}
+.audit-list{display:grid;gap:9px}
+.audit-item{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:8px 16px;align-items:start;padding:12px;border:1px solid #e9dfcf;border-radius:9px;background:#fffdf9}
+.audit-item>div{display:grid;gap:4px}
+.audit-item small{color:#8b7b65}
+.audit-item time{font-size:11px;color:#8b7b65}
+.audit-item details{grid-column:1/-1;font-size:12px;color:#806f58}
+.audit-item summary{cursor:pointer;font-weight:700}
+.audit-item pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto;padding:10px;background:#f8f1e5;border-radius:7px;color:#59472f}
+.completion-check{display:flex!important;flex-direction:row;align-items:center;gap:10px;padding:11px 13px;border:1px solid #e6d6b8;border-radius:8px;background:#fbf7ef}
+.completion-check input{width:17px;height:17px;accent-color:#a97822}
+.form-grid textarea{width:100%;min-height:90px;padding:11px 12px;border:1px solid #dfd2bd;border-radius:8px;background:#fffefa;color:#59472f;font:inherit;resize:vertical}
+.form-grid textarea:focus{outline:none;border-color:#b8872f;box-shadow:0 0 0 2px #b8872f22}
+@media(max-width:760px){.audit-item{grid-template-columns:1fr}.audit-item time{grid-row:2}.admin-actions{min-width:130px}}
