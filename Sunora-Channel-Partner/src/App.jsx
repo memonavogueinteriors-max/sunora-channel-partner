@@ -601,30 +601,52 @@ export default function App() {
   // PARTNER / SALES / COMMISSION ACTIONS
   // ---------------------------------------------------------
 
-  async function addPartner(e) {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
+ 
+async function addPartner(e) {
+  e.preventDefault();
+  setBusy(true);
+  setError('');
 
+  try {
     const payload = {
       ...partnerForm,
       parent_partner_id: partnerForm.parent_partner_id || null
     };
 
+    // Step 1: Create the partner record in Supabase.
     const { data, error: insertError } = await supabase
       .from('partners')
       .insert(payload)
-      .select('partner_code,full_name')
+      .select('id, partner_code, full_name')
       .single();
 
-    setBusy(false);
-
     if (insertError) {
-      setError(insertError.message);
-      return;
+      throw insertError;
     }
 
+    // Step 2: Send the partner invitation.
+    const { data: inviteData, error: inviteError } =
+      await supabase.functions.invoke('partner-invite', {
+        body: {
+          partner_id: data.id
+        }
+      });
+
+    if (inviteError) {
+      throw new Error(
+        `Partner created (${data.partner_code}), but invitation failed: ${inviteError.message}`
+      );
+    }
+
+    if (!inviteData?.success) {
+      throw new Error(
+        `Partner created (${data.partner_code}), but invitation was not confirmed.`
+      );
+    }
+
+    // Step 3: Reset the form after successful invitation.
     setShowPartner(false);
+
     setPartnerForm({
       full_name: '',
       email: '',
@@ -635,8 +657,18 @@ export default function App() {
     });
 
     await loadData();
-    flash(`Partner created: ${data.partner_code}`);
+
+    flash(`Partner created and invitation sent: ${data.partner_code}`);
+
+  } catch (err) {
+    setError(err.message || 'Unable to create partner.');
+    await loadData();
+
+  } finally {
+    setBusy(false);
   }
+}
+
 
   const invoiceQty = Number(saleForm.quantity || 0);
   const invoiceUnit = Number(saleForm.unit_price || 0);
