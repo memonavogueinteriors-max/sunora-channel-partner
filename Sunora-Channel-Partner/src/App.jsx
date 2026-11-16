@@ -625,18 +625,20 @@ async function addPartner(e) {
     }
 
     // Step 2: Send the partner invitation.
-    const { data: inviteData, error: inviteError } =
-      await supabase.functions.invoke('partner-invite', {
-        body: {
-          partner_id: data.id
-        }
-      });
+console.log('PARTNER INVITE: calling Edge Function', data.id);
 
-    if (inviteError) {
-      throw new Error(
-        `Partner created (${data.partner_code}), but invitation failed: ${inviteError.message}`
-      );
+const { data: inviteData, error: inviteError } =
+  await supabase.functions.invoke('partner-invite', {
+    body: {
+      partner_id: data.id
     }
+  });
+
+if (inviteError) {
+  throw new Error(
+    `Partner created (${data.partner_code}), but invitation failed: ${inviteError.message}`
+  );
+}
 
     if (!inviteData?.success) {
       throw new Error(
