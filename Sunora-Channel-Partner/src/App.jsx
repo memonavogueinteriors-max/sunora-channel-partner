@@ -106,6 +106,7 @@ export default function App() {
   const [reportMonth, setReportMonth] = useState(currentMonth());
 
   const [partners, setPartners] = useState([]);
+  const [branchPartners, setBranchPartners] = useState([]);
   const [sales, setSales] = useState([]);
   const [payments, setPayments] = useState([]);
   const [commissions, setCommissions] = useState([]);
@@ -207,6 +208,7 @@ export default function App() {
       } else {
         setProfile(null);
         setPartners([]);
+        setBranchPartners([]);
         setSales([]);
         setPayments([]);
         setCommissions([]);
@@ -298,6 +300,10 @@ export default function App() {
         .limit(100)
     );
 
+    if (userRole === 'partner') {
+      requests.push(supabase.rpc('sunora_get_partner_branch'));
+    }
+
     const results = await Promise.all(requests);
     const firstError = results.find(r => r.error)?.error;
 
@@ -321,6 +327,7 @@ export default function App() {
     setReferrals(results[7].data || []);
     setAuditLogs(userRole === 'admin' ? (results[8]?.data || []) : []);
     setNotifications(userRole === 'admin' ? (results[9]?.data || []) : (results[8]?.data || []));
+    setBranchPartners(userRole === 'partner' ? (results[9]?.data || []) : []);
 
     setBusy(false);
   }
@@ -373,6 +380,11 @@ export default function App() {
     : partners.filter(p =>
         p.id === ownPartner?.id || p.parent_partner_id === ownPartner?.id
       );
+
+  const branchNetworkRows = isStaff ? partners : branchPartners;
+  const branchNetworkRoots = isStaff
+    ? branchNetworkRows.filter(p => !p.parent_partner_id || !branchNetworkRows.some(x => x.id === p.parent_partner_id))
+    : branchNetworkRows.filter(p => p.id === ownPartner?.id);
 
   const scopedPayments = isStaff
     ? payments
@@ -1531,7 +1543,7 @@ async function addPartner(e) {
             </section>
 
             <section className="stats-grid">
-              <Stat icon={Users} label={isStaff ? 'Total partners' : 'My partners'} value={isStaff ? partners.length : scopedPartners.length} foot="Registered network" />
+              <Stat icon={Users} label={isStaff ? 'Total partners' : 'My partners'} value={isStaff ? partners.length : Math.max(0, branchPartners.filter(p => p.id !== ownPartner?.id).length)} foot="Registered network" />
               <Stat icon={TrendingUp} label="Total sales" value={money(isStaff ? totalSales : effectiveSales)} foot="Invoice value recorded" />
               <Stat icon={Wallet} label="Channel Partner Savings" value={money(isStaff ? totalSavings : effectiveSavings)} foot="Earned savings · not deducted from sales" />
               <Stat icon={CreditCard} label="Outstanding savings" value={money(isStaff ? totalDue : Math.max(0, effectiveSavings - effectivePaid))} foot="Pending settlement" />
@@ -1617,16 +1629,14 @@ async function addPartner(e) {
           <section className="panel">
             <PanelHeading title="Referral network" subtitle="Parent-child relationships across the partner network" />
             <div className="branch-list">
-              {(isStaff ? partners : scopedPartners)
-                .filter(p => !p.parent_partner_id || (isStaff && !partners.some(x => x.id === p.parent_partner_id)))
-                .map(p => (
-                  <BranchNode
-                    key={p.id}
-                    partner={p}
-                    all={isStaff ? partners : scopedPartners}
-                    depth={0}
-                  />
-                ))}
+              {branchNetworkRoots.map(p => (
+                <BranchNode
+                  key={p.id}
+                  partner={p}
+                  all={isStaff ? partners : branchNetworkRows}
+                  depth={0}
+                />
+              ))}
             </div>
           </section>
         )}
