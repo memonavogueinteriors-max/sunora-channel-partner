@@ -19,6 +19,7 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 - Invoice recording with AED/USD, fixed QA/business conversion rate of 3.68, 5% VAT, additional project costs, separate savings ledger, and profit tiers.
 - Profit approval and project-completion checks; profit eligibility requires Admin approval plus all completion checks.
 - Partner and admin dashboards, monthly report, CSV export, and partner monthly statement preview.
+- Partner monthly statement CSV/PDF export and an RLS-scoped notification inbox; referral status changes generate in-app alerts for linked partners.
 - Audit log, in-app notifications, and payout ledger tables.
 
 ## Profit payout workflow (Nov 26, 2026)
@@ -46,7 +47,7 @@ Additive database safeguards now include:
 - Duplicate email and normalized phone protection within the same partner's referral list.
 - A database trigger that validates referral-to-partner attribution and converts the referral status when a sale is linked.
 
-## Current database snapshot (Nov 26, 2026)
+## Current database snapshot (Nov 27, 2026)
 
 | Record type | Count |
 |---|---:|
@@ -62,7 +63,7 @@ No temporary QA records were left in the database after rollback tests.
 
 ## Database setup / migration warning
 
-`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has twelve migrations recorded. Category 5 restored two missing source migrations and aligned migration filenames with the recorded live versions. The referrals table privilege-hardening migration is applied and read-back verified. Full clean-install certification is still blocked because the starter schema lacks several current financial and notification objects. Do not recreate production or apply the starter schema until full clean-install validation passes.
+`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has thirteen migrations recorded. Category 5 restored two missing source migrations and aligned migration filenames with the recorded live versions. The referrals table privilege-hardening migration is applied and read-back verified. Full clean-install certification is still blocked because the starter schema lacks several current financial and notification objects. Do not recreate production or apply the starter schema until full clean-install validation passes.
 
 For the existing project, changes are applied through reviewed Supabase migrations. For local development:
 
@@ -81,8 +82,8 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 - **Category 3:** Done & Verified.
 - **Category 4:** Done & Verified — payout uniqueness migration applied and read-back verified in the live database.
 - **Category 5:** Current focus; remaining implementation and safe verification:
-  - Partner referral status/conversion notification coverage (without live invitation/onboarding testing).
-  - Monthly statement PDF generation and email delivery scaffolding (no real emails).
+  - Partner referral status/conversion in-app notifications and RLS-scoped partner inbox — implemented and live; no live referral UI/attribution tests performed.
+  - Partner monthly statement PDF export — implemented; email-delivery scaffolding remains (no real emails).
   - Google Sheets sync implementation with safe dry-run, retry and idempotency (no external writes).
   - Zoho Books integration scaffolding only, pending credentials and authorization.
   - Recursive referral-branch visibility with secure RLS checks.
@@ -96,6 +97,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 - Leaked-password protection is reported disabled; enablement requires an Auth configuration review and is not yet verified.
 - The performance advisor reports 24 unused indexes (14 FK-supporting indexes plus 10 pre-existing). Do not drop them without query and FK analysis.
 - Live read-back confirms the duplicate unique index on `commission_payouts.commission_id` was removed while the unique constraint remains.
+- Referral status notifications are in-app only. The trigger function has a fixed `search_path` and execution revoked from `PUBLIC`, `anon`, and `authenticated`. Authenticated notification updates are granted only on `read_at`, constrained by the existing own-row RLS update policy.
 - Live catalog inspection found broad table privileges including `TRUNCATE` on six RLS-protected tables (`referrals`, `commission_payouts`, `sale_commissions`, `sale_project_costs`, `sunora_audit_log`, and `sunora_product_prices`). Migration `20261126185733` removed those grants from `PUBLIC`, `anon`, and `authenticated`, restored authenticated CRUD and service-role access, and was read-back verified: anonymous privileges are all false, authenticated CRUD remains true but `TRUNCATE` is false, and RLS is enabled on all six tables.
 
 ## Finance rules currently in code
