@@ -101,6 +101,9 @@ export default function App() {
   const [productPrices, setProductPrices] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [partnerNotifications, setPartnerNotifications] = useState([]);
+  const [partnerNotificationError, setPartnerNotificationError] = useState('');
+  const [partnerNotificationsLoading, setPartnerNotificationsLoading] = useState(false);
   const [referrals, setReferrals] = useState([]);
   const [referralForm, setReferralForm] = useState({ contact_name: '', company: '', email: '', phone: '', notes: '' });
 
@@ -201,6 +204,8 @@ export default function App() {
         setProjectCosts([]);
         setAuditLogs([]);
         setNotifications([]);
+        setPartnerNotifications([]);
+        setPartnerNotificationError('');
         setReferrals([]);
         setTab('Dashboard');
         setLoading(false);
@@ -225,7 +230,10 @@ export default function App() {
     setProfile(data || null);
     setLoading(false);
 
-    if (data) await loadData(data.role);
+    if (data) {
+      await loadData(data.role);
+      if (data.role === 'partner') await loadPartnerNotifications(userId);
+    }
   }
 
   async function loadData(userRole = profile?.role) {
@@ -311,6 +319,32 @@ export default function App() {
 
     setBusy(false);
   }
+
+  async function loadPartnerNotifications(userId) {
+    if (!supabase || !userId) return;
+    setPartnerNotificationsLoading(true);
+    setPartnerNotificationError('');
+    try {
+      const { data, error: notificationError } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (notificationError) {
+        setPartnerNotificationError(notificationError.message || 'Unable to load your notifications.');
+        setPartnerNotifications([]);
+      } else {
+        setPartnerNotifications(data || []);
+      }
+    } catch (notificationError) {
+      setPartnerNotificationError(notificationError.message || 'Unable to load your notifications.');
+      setPartnerNotifications([]);
+    } finally {
+      setPartnerNotificationsLoading(false);
+    }
+  }
+
 
   async function signIn(e) {
     e.preventDefault();
@@ -1266,11 +1300,13 @@ async function addPartner(e) {
     ...(isStaff ? [{ name: 'Profit Payouts', icon: CreditCard }] : []),
     { name: isPartner ? 'My Referrals' : 'Referrals', icon: GitBranch },
     ...(isAdmin ? [{ name: 'Notifications', icon: Bell }] : []),
+    ...(isPartner ? [{ name: 'My Notifications', icon: Bell }] : []),
     ...(isAdmin ? [{ name: 'Monthly Reports', icon: ChartNoAxesCombined }] : []),
     ...(isPartner ? [{ name: 'My Monthly Statement', icon: ClipboardList }] : [])
   ];
 
   const unreadNotificationCount = notifications.filter(n => !n.read_at).length;
+  const unreadPartnerNotificationCount = partnerNotifications.filter(n => !n.read_at).length;
 
   return (
     <div className="app-shell">
@@ -1300,6 +1336,9 @@ async function addPartner(e) {
                   setTab(item.name);
                   setMobileNav(false);
                   setSearch('');
+                  if (item.name === 'My Notifications' && isPartner && session?.user?.id) {
+                    loadPartnerNotifications(session.user.id);
+                  }
                 }}
               >
                 <Icon size={18} />
@@ -1311,6 +1350,10 @@ async function addPartner(e) {
 
                 {item.name === 'Notifications' && unreadNotificationCount > 0 && (
                   <span className="nav-count">{unreadNotificationCount}</span>
+                )}
+
+                {item.name === 'My Notifications' && unreadPartnerNotificationCount > 0 && (
+                  <span className="nav-count">{unreadPartnerNotificationCount}</span>
                 )}
               </button>
             );
@@ -1796,6 +1839,47 @@ async function addPartner(e) {
             )}
           </section>
         )}
+
+        {/* PARTNER-ONLY NOTIFICATIONS: read-only, scoped to the signed-in partner */}
+        {tab === 'My Notifications' && isPartner && (
+          <section className="panel">
+            <PanelHeading
+              title="My Notifications"
+              subtitle="Messages and updates for your partner account"
+              action={
+                <button
+                  className="secondary-btn"
+                  onClick={() => loadPartnerNotifications(session?.user?.id)}
+                  disabled={partnerNotificationsLoading}
+                >
+                  <RefreshCw size={16} /> Refresh
+                </button>
+              }
+            />
+            {partnerNotificationError && <div className="alert warning">Notifications could not be loaded: {partnerNotificationError}</div>}
+            {partnerNotificationsLoading ? (
+              <Empty text="Loading your notifications…" />
+            ) : partnerNotifications.length ? (
+              <div className="audit-list">
+                {partnerNotifications.map(n => (
+                  <div className="audit-item" key={n.id}>
+                    <div>
+                      <b>{n.title || 'Sunora notification'}</b>
+                      <small>{String(n.event_type || '').replaceAll('_', ' ')}</small>
+                      <p>{n.message || 'No additional details.'}</p>
+                      {n.related_table && <small>Related: {n.related_table}{n.related_id ? ` · ${n.related_id}` : ''}</small>}
+                    </div>
+                    <time>{new Date(n.created_at).toLocaleString()}</time>
+                    <span className={`status ${n.read_at ? '' : 'pending'}`}>{n.read_at ? 'Read' : 'Unread'}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Empty text="No notifications for your partner account yet." />
+            )}
+          </section>
+        )}
+
 
         {/* ADMIN-ONLY MONTHLY REPORTS */}
         {tab === 'Monthly Reports' && isAdmin && (
