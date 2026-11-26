@@ -768,7 +768,7 @@ if (inviteError) {
       vat_rate: 5,
       vat_amount: Number(vatAmount.toFixed(2)),
       total_inc_vat: Number(invoiceTotal.toFixed(2)),
-      profit-eligible_base_amount: Number(invoiceSubtotal.toFixed(2)),
+      commissionable_base_amount: Number(invoiceSubtotal.toFixed(2)),
       project_status: 'in_progress'
     };
 
@@ -805,7 +805,7 @@ if (inviteError) {
       partner_id: sale.partner_id,
       panel_quantity: invoiceQty,
       tier_code: tier.code,
-      profit-eligible_base_amount: Number(invoiceSubtotal.toFixed(2)),
+      commissionable_base_amount: Number(invoiceSubtotal.toFixed(2)),
       commission_currency: saleForm.invoice_currency,
       commission_rate: tier.rate,
       commission_amount: tier.rate === null
@@ -909,7 +909,7 @@ if (inviteError) {
     }
 
     const amount = Number(
-      (Number(selectedRateCommission.profit-eligible_base_amount || 0) * rate / 100).toFixed(2)
+      (Number(selectedRateCommission.commissionable_base_amount || 0) * rate / 100).toFixed(2)
     );
 
     setBusy(true);
@@ -1451,7 +1451,7 @@ if (inviteError) {
                       <td><b>{c.partner?.full_name || '—'}</b><small>{c.partner?.partner_code}</small></td>
                       <td>{c.panel_quantity}</td>
                       <td>{c.tier_code === 'manual_over_150' ? 'Manual >150' : c.tier_code.replaceAll('_', ' ')}</td>
-                      <td>{money(c.profit-eligible_base_amount, c.commission_currency)}</td>
+                      <td>{money(c.commissionable_base_amount, c.commission_currency)}</td>
                       <td>{c.commission_rate === null ? 'Pending' : `${c.commission_rate}%`}</td>
                       <td className="gold-text">{c.commission_amount === null ? 'Pending' : money(c.commission_amount, c.commission_currency)}</td>
                       <td>
@@ -1858,7 +1858,7 @@ if (inviteError) {
                             <td className="code">{c.sale?.invoice_number || '—'}</td>
                             <td>{c.panel_quantity}</td>
                             <td>{c.commission_currency}</td>
-                            <td>{money(c.profit-eligible_base_amount, c.commission_currency)}</td>
+                            <td>{money(c.commissionable_base_amount, c.commission_currency)}</td>
                             <td>{c.commission_rate === null ? 'Pending' : `${c.commission_rate}%`}</td>
                             <td className="gold-text">{c.commission_amount === null ? 'Pending' : money(c.commission_amount, c.commission_currency)}</td>
                             <td><span className={`status ${c.approval_status === 'approved' ? '' : c.approval_status === 'rejected' ? 'inactive' : 'pending'}`}>{c.approval_status}</span>{c.approval_comments && <small>{c.approval_comments}</small>}</td>
@@ -2023,13 +2023,13 @@ if (inviteError) {
         <Modal title="Approve manual profit rate" close={() => setSelectedRateCommission(null)}>
           <form className="form-grid" onSubmit={saveManualRate}>
             <div className="form-hint full-field">
-              <b>{selectedRateCommission.sale?.invoice_number || 'Invoice'}</b> · {selectedRateCommission.panel_quantity} panels · Base {money(selectedRateCommission.profit-eligible_base_amount, selectedRateCommission.commission_currency)}. This rate requires Admin approval.
+              <b>{selectedRateCommission.sale?.invoice_number || 'Invoice'}</b> · {selectedRateCommission.panel_quantity} panels · Base {money(selectedRateCommission.commissionable_base_amount, selectedRateCommission.commission_currency)}. This rate requires Admin approval.
             </div>
             <label className="full-field">Profit rate (%) *
               <input required type="number" min="0" max="100" step="0.01" value={manualRate} onChange={e => setManualRate(e.target.value)} placeholder="Enter approved rate" />
             </label>
             <div className="form-hint full-field">
-              Calculated profit: {money(Number(selectedRateCommission.profit-eligible_base_amount || 0) * Number(manualRate || 0) / 100, selectedRateCommission.commission_currency)}
+              Calculated profit: {money(Number(selectedRateCommission.commissionable_base_amount || 0) * Number(manualRate || 0) / 100, selectedRateCommission.commission_currency)}
             </div>
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setSelectedRateCommission(null)}>Cancel</button>
