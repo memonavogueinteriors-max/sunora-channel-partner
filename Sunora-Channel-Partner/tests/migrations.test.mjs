@@ -4,7 +4,7 @@ import { readdir, readFile } from 'node:fs/promises';
 
 const migrationDir = new URL('../supabase/migrations/', import.meta.url);
 
-test('migration filenames are reconciled with live versions plus the pending ACL hardening migration', async () => {
+test('migration filenames match the applied live migration history', async () => {
   const files = (await readdir(migrationDir)).filter(file => file.endsWith('.sql')).sort();
   assert.deepEqual(files, [
     '20261126083905_create_partner_referrals_pipeline.sql',
@@ -18,7 +18,7 @@ test('migration filenames are reconciled with live versions plus the pending ACL
     '20261126121202_index_uncovered_foreign_keys.sql',
     '20261126173908_unique_profit_payout_per_commission.sql',
     '20261126184841_20261126180000_remove_redundant_payout_unique_index.sql',
-    '20261126190000_restrict_public_table_privileges.sql'
+    '20261126185733_20261126190000_restrict_public_table_privileges.sql'
   ]);
 });
 
@@ -53,7 +53,7 @@ test('social profile migration uses a non-null empty-object JSONB default', asyn
 });
 
 test('public table ACL hardening removes anon and truncate privileges from exposed RLS tables while preserving authenticated CRUD', async () => {
-  const sql = await readFile(new URL('../supabase/migrations/20261126190000_restrict_public_table_privileges.sql', import.meta.url), 'utf8');
+  const sql = await readFile(new URL('../supabase/migrations/20261126185733_20261126190000_restrict_public_table_privileges.sql', import.meta.url), 'utf8');
   const tables = ['public.referrals', 'public.commission_payouts', 'public.sale_commissions', 'public.sale_project_costs', 'public.sunora_audit_log', 'public.sunora_product_prices'];
   for (const table of tables) assert.ok(sql.includes(table), `Missing hardened table: ${table}`);
   assert.ok(sql.includes('FROM PUBLIC, anon, authenticated'));
