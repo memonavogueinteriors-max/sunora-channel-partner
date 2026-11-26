@@ -62,7 +62,7 @@ No temporary QA records were left in the database after rollback tests.
 
 ## Database setup / migration warning
 
-`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has ten migrations recorded. Migration-source reconciliation is ongoing; a payout uniqueness migration timestamp mismatch and its redundant index are being addressed in a Category 5 pull request. Do not recreate the production database or apply the starter schema to it until the migration chain has been reconciled and clean-install validation passes.
+`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has ten migrations recorded. Migration-source reconciliation is ongoing. The production payout-uniqueness migration filename is already aligned with the applied version; the regression test had referenced an obsolete filename and has been corrected. A Category 5 migration is proposed to remove only the duplicate standalone index while preserving the existing unique constraint. Do not recreate the production database or apply the starter schema to it until the migration chain has been reconciled and clean-install validation passes.
 
 For the existing project, changes are applied through reviewed Supabase migrations. For local development:
 
