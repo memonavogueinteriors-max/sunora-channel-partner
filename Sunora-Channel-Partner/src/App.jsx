@@ -9,6 +9,7 @@ import {
   ShieldCheck, CircleAlert, CheckCircle2, BadgePercent, Calculator,
   CalendarDays, ChartNoAxesCombined, ClipboardList, Bell
 } from 'lucide-react';
+import { buildPartnerStatementPdf } from './statementPdf';
 
 const money = (n, currency = 'AED') =>
   new Intl.NumberFormat('en-AE', {
@@ -1290,6 +1291,47 @@ async function addPartner(e) {
     downloadCsv(rows, `sunora-my-statement-${reportMonth}.csv`);
   }
 
+  function exportPartnerStatementPdf() {
+    if (!isPartner || !ownPartner) return;
+
+    const payoutRows = statementPayouts.map(p => {
+      const commission = scopedCommissions.find(c => c.id === p.commission_id);
+      return {
+        ...p,
+        date: p.payment_date || p.paid_at?.slice(0, 10) || p.created_at?.slice(0, 10) || '',
+        payment_reference: p.payment_reference || '',
+        invoice_number: commission?.sale?.invoice_number || ''
+      };
+    });
+
+    const pdfBytes = buildPartnerStatementPdf({
+      month: reportMonth,
+      monthLabel: monthLabel(reportMonth),
+      partner: {
+        full_name: ownPartner.full_name,
+        partner_code: ownPartner.partner_code,
+        status: ownPartner.status
+      },
+      sales: statementSales,
+      profits: statementCommissions.map(c => ({
+        ...c,
+        invoice_number: c.sale?.invoice_number || '',
+        invoice_date: c.sale?.invoice_date || ''
+      })),
+      profitSummary: statementCommissionTotals,
+      payouts: payoutRows
+    });
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'sunora-my-statement-' + reportMonth + '.pdf';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   if (!isSupabaseConfigured) return <SetupScreen />;
 
   if (loading) {
@@ -2057,9 +2099,14 @@ async function addPartner(e) {
               title="My Monthly Statement"
               subtitle="Your own invoices, profits and payment history"
               action={
-                <button className="secondary-btn" onClick={exportPartnerStatement} disabled={!ownPartner}>
-                  <Download size={16} /> Export my statement CSV
-                </button>
+                <div className="statement-actions">
+                  <button className="secondary-btn" onClick={exportPartnerStatementPdf} disabled={!ownPartner}>
+                    <Download size={16} /> Export PDF statement
+                  </button>
+                  <button className="secondary-btn" onClick={exportPartnerStatement} disabled={!ownPartner}>
+                    <Download size={16} /> Export CSV
+                  </button>
+                </div>
               }
             />
 
