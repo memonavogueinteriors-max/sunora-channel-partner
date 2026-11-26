@@ -1,119 +1,83 @@
-# Sunora Channel Partner Portal
+# SUNORA Channel Partner Portal
 
-A React + Vite + Supabase starter project for Sunora's online channel-partner management portal. It includes branded login, partner registration, database-generated partner IDs, referral relationships, Zoho Books invoice references, a savings ledger, payment history, CSV exports, and role-aware database access.
+React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 
-> **Production status:** This is the source code and deployment starter, not a deployed/verified production system. You must create a dedicated Supabase project, apply the schema, configure the first administrator, set environment variables, deploy to Vercel, and test the access policies before using real financial records.
+## Current environment
 
-## Stack
-- React + Vite
-- Supabase Auth + PostgreSQL + Row Level Security
-- Vercel hosting
-- Sunora logo at `public/sunora-logo.png`
+- **Production URL:** https://sunora-channel-partner.vercel.app
+- **Supabase project:** `gzuozbhrzwbugbkdeogb` (active/healthy)
+- **Partner invitation Edge Function:** `partner-invite` — active, version 6, JWT required
+- **Production deployment verification:** GitHub's Vercel status check reported success for the recent commits. The connected Vercel tools cannot resolve this project and the public URL could not be fetched in this verification session, so the exact production build is not independently confirmed here.
 
-## 1. Install locally
+## Implemented features
 
-Install Node.js LTS, then open PowerShell in this folder:
+- Role-aware login and database policies for Admin, Staff, and Partner.
+- Partner registration and database-generated monthly IDs in the `CHYYYYMMNNN` format, with a unique partner code and parent-partner relationship.
+- Social profile platform selection and handle/profile URL fields stored in `partners.social_media_profiles`.
+- Partner invitations via the `partner-invite` Supabase Edge Function, including retry action for partners without a linked login.
+- Referral pipeline (New, Contacted, Qualified, Converted, Lost) with partner attribution.
+- Invoice recording with AED/USD, fixed QA/business conversion rate of 3.68, 5% VAT, additional project costs, separate savings ledger, and profit tiers.
+- Profit approval and project-completion checks; profit eligibility requires Admin approval plus all completion checks.
+- Partner and admin dashboards, monthly report, CSV export, and partner monthly statement preview.
+- Audit log, in-app notifications, and payout ledger tables.
 
-```powershell
-npm install
-Copy-Item .env.example .env.local
-```
+## Sale integrity update (Nov 26, 2026)
 
-Edit `.env.local` and set:
+The database now has an atomic RPC, `sunora_create_sale_bundle`, used by the invoice form. It creates the sale, additional-cost line, profit record, and referral conversion in one transaction; retrying the same invoice with matching details returns the existing sale instead of duplicating records. It also rejects mismatched partner/referral attribution and conflicting invoice details.
 
-```env
-VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
-```
+Additive database safeguards now include:
 
-Use the project's publishable key (or legacy anon key). **Never use `service_role` or secret keys in a Vite environment variable.** Any `VITE_` value is exposed to the browser.
+- Case-insensitive global invoice-number uniqueness.
+- One sale per referral.
+- Duplicate email and normalized phone protection within the same partner's referral list.
+- A database trigger that validates referral-to-partner attribution and converts the referral status when a sale is linked.
 
-Run:
+## Current database snapshot (Nov 26, 2026)
 
-```powershell
-npm run dev
-```
+| Record type | Count |
+|---|---:|
+| Partners | 3 |
+| Referrals | 0 |
+| Sales | 2 |
+| Profit records | 2 |
+| Project-cost entries | 0 |
+| Profit payouts | 0 |
+| Savings payments | 0 |
 
-Check a production build:
+No temporary QA records were left in the database after rollback tests.
 
-```powershell
-npm run build
-```
+## Database setup / migration warning
 
-## 2. Create a dedicated Supabase project
+`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has six migrations recorded, but the earlier referral, social-profile, RLS optimization, and security migrations are not fully synchronized in the repository. Do not recreate the production database or apply the starter schema to it. Migration-source reconciliation is still required before a clean environment can be provisioned safely from Git.
 
-1. Create a NEW project named `Sunora Channel Partner` in Supabase. Do not reuse or overwrite the AMC, Task Tracker, or BBT database.
-2. Open **SQL Editor** and run all of `supabase/schema.sql`.
-3. Under **Authentication → URL Configuration**, add your eventual Vercel URL to Site URL / Redirect URLs after deployment.
-4. Create your own admin user through Authentication. Confirm the matching row exists in `public.profiles`.
-5. In SQL Editor, replace the email and run:
+For the existing project, changes are applied through reviewed Supabase migrations. For local development:
 
-```sql
-update public.profiles p
-set role = 'admin'
-from auth.users u
-where p.id = u.id and u.email = 'YOUR-ADMIN-EMAIL';
-```
+1. Install Node.js LTS.
+2. From `Sunora-Channel-Partner`, run `npm install`.
+3. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+4. Run `npm run dev`.
+5. Run `npm run build` for the production build.
 
-6. Sign in to the app with that user. Add a test partner and invoice and verify generated code, savings and permissions before real use.
+Never expose the Supabase service-role key in any `VITE_*` variable or commit secrets.
 
-Partner codes follow `CHYYYYMMNNN`, e.g. `CH202610001`. The database generates them with a locked monthly counter so concurrent inserts do not reuse the same sequence. The code is a unique identifier; the parent relationship is stored separately.
+## Remaining roadmap
 
-## 3. Push this project to GitHub
+- Admin/Accounts profit-payout creation, approval, payable-balance validation, payout idempotency, and payment confirmation workflow (the payout table and partner read history exist, but no admin payout-entry UI is currently present).
+- Referral status and conversion notifications to partners (status updates are currently stored; partner notification coverage is incomplete).
+- Monthly statement PDF generation and automated email delivery.
+- Google Sheets sync (the current folder is documentation only; no active sync function).
+- Zoho Books API integration.
+- Recursive referral-branch visibility for partner logins (current access is limited to the partner and direct children).
+- Full end-to-end UI testing of registration, invitation delivery, password setup, partner login, referrals, invoice, profit approval, completion, and payout.
+- Reconcile the database's applied migration history and restore a complete clean-install schema/migration chain.
+- Security follow-up: enable leaked-password protection in Supabase Auth after configuration review. Supabase advisors also report 14 unindexed foreign keys and 10 unused indexes; these are being reviewed rather than removed blindly.
 
-Create an EMPTY repository named `sunora-channel-partner` under your company's GitHub account. Do not add a README/license in GitHub if you already have this local README.
+## Finance rules currently in code
 
-Run these commands in PowerShell from the project folder:
-
-```powershell
-git init
-git add .
-git commit -m "Initial Sunora channel partner portal"
-git branch -M main
-git remote add origin https://github.com/YOUR-ORG/sunora-channel-partner.git
-git push -u origin main
-```
-
-Replace `YOUR-ORG` with the correct GitHub username or organisation. Never commit `.env.local`; `.gitignore` excludes it. Do not commit passwords, tokens, or Supabase service-role keys.
-
-## 4. Deploy on Vercel
-
-1. In Vercel choose **Add New → Project** and import the new GitHub repository.
-2. Framework preset: **Vite**. Build command: `npm run build`. Output directory: `dist`.
-3. In Vercel **Settings → Environment Variables**, add:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-4. Apply variables to Production (and Preview if needed) and deploy.
-5. Open the assigned `*.vercel.app` URL and test sign-in, data loading, partner creation, invoice entry, savings and payment history.
-6. Add the exact Vercel URL to Supabase Auth URL Configuration. Redeploy if you change environment variables.
-
-## 5. Important security and accounting checks before production
-
-- The first administrator must be promoted in the database manually. Do not allow a public sign-up form to choose their own role.
-- Do not allow partners to enter sales or payments unless the business explicitly decides to enable it; current SQL allows staff/admin writes only.
-- The UI's partner scope is basic; the SQL policies are the real access boundary. Review and test them using separate admin, staff, and partner accounts.
-- Current referral read policy exposes a partner's own record and direct children only. Recursive branch visibility should be implemented with a reviewed recursive query/RPC if full descendants are required.
-- Current savings are calculated per invoice using the rate entered by staff. Confirm the approved rate and whether savings apply to invoice subtotal, discount, VAT, returns, or paid invoices before using real payouts.
-- Payment entry currently records payment history, but does not enforce a server-side maximum against outstanding savings. Add a transactional payout function and audit trail before real payments.
-- Duplicate invoice numbers are blocked per partner. For stricter accounting, also reconcile invoice numbers globally against Zoho Books and handle voids/credit notes.
-- Google Sheets / Zoho Books synchronization is not yet connected. Do not store Google credentials in frontend code. Implement sync via a Supabase Edge Function or a trusted server, with secret values in Supabase/Vercel server-side secrets. Verify retries, duplicate prevention, logs, and access scopes.
-- Consider adding immutable audit logs, MFA for administrators, email invitations/password resets, account deactivation, and scheduled database backups before rollout.
-
-## 6. Current included features
-
-- Sunora-branded responsive login and dashboard
-- Partner registration and automatic monthly ID generation (database trigger)
-- Parent/referrer field and referral tree display
-- Invoice entry using Zoho Books invoice number
-- Separate savings calculation and ledger
-- Payment-history entries
-- Search and CSV export
-- Supabase Row Level Security policies
-
-## 7. Not yet implemented
-
-- Actual Google Sheets sync and Zoho Books API integration
-- Automated partner invitations and account-to-partner linking screen
-- Full recursive referral tree access for partner logins
-- Transactional payout approval, balance validation, and audit log
-- Live production deployment and verified end-to-end tests
+- 1–3 panels: 0%
+- 4–50: 5%
+- 51–100: 10%
+- 101–150: 15%
+- Above 150: manual rate approval
+- Profit base excludes VAT. Additional project costs are currently included in the pre-VAT profit base; confirm the accounting rule before real payouts.
+- Profit is separate from the legacy savings ledger.
