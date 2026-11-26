@@ -1,6 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { getPayableProfits, getAvailableProfits, getPayoutSummaryByCurrency } from './payouts';
 import {
   Sun, LayoutDashboard, Users, GitBranch, ReceiptText, Wallet,
   CreditCard, FileSpreadsheet, LogOut, Search, Plus, RefreshCw,
@@ -386,25 +387,13 @@ export default function App() {
     ? commissionPayouts
     : commissionPayouts.filter(p => ownCommissionIds.has(p.commission_id));
 
-  const payableProfits = scopedCommissions.filter(c =>
-    c.approval_status === 'approved' &&
-    c.eligibility_status === 'eligible' &&
-    Number(c.commission_amount || 0) > 0 &&
-    c.commission_rate !== null
+  const payableProfits = getPayableProfits(scopedCommissions);
+  const availableProfits = getAvailableProfits(payableProfits, scopedPayouts);
+  const payoutSummaryByCurrency = getPayoutSummaryByCurrency(
+    payableProfits,
+    scopedPayouts,
+    availableProfits
   );
-  const payoutByCommissionId = new Map(scopedPayouts.map(p => [p.commission_id, p]));
-  const availableProfits = payableProfits.filter(c => !payoutByCommissionId.has(c.id));
-  const payoutSummaryByCurrency = [...new Set(payableProfits.map(c => c.commission_currency || 'AED'))].map(currency => {
-    const eligible = payableProfits.filter(c => (c.commission_currency || 'AED') === currency)
-      .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
-    const pending = scopedPayouts.filter(p => p.currency === currency && p.status === 'pending')
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const paid = scopedPayouts.filter(p => p.currency === currency && p.status === 'paid')
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const available = availableProfits.filter(c => (c.commission_currency || 'AED') === currency)
-      .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
-    return { currency, eligible, pending, paid, available };
-  });
 
   const totalSales = sales.reduce(
     (sum, x) => sum + toAED(
