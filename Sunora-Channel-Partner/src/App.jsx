@@ -1978,7 +1978,7 @@ if (inviteError) {
         <Modal title="Create Sunora invoice" close={() => setShowSale(false)}>
           <form className="form-grid" onSubmit={addSale}>
             <label>Channel partner *
-              <select required value={saleForm.partner_id} onChange={e => setSaleForm({ ...saleForm, partner_id: e.target.value })}>
+              <select required value={saleForm.partner_id} onChange={e => setSaleForm({ ...saleForm, partner_id: e.target.value, referral_id: '' })}>
                 <option value="">Select partner</option>
                 {(isStaff ? partners : scopedPartners).map(p => <option key={p.id} value={p.id}>{p.partner_code} — {p.full_name}</option>)}
               </select>
