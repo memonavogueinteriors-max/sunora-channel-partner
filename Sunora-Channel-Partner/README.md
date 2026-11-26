@@ -7,7 +7,7 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 - **Production URL:** https://sunora-channel-partner.vercel.app
 - **Supabase project:** `gzuozbhrzwbugbkdeogb` (active/healthy)
 - **Partner invitation Edge Function:** `partner-invite` — active, version 6, JWT required
-- **Production deployment verification:** Vercel status check for merged commit `82b7a1a` is **success**. The connected Vercel tools cannot resolve the project and the public URL could not be independently opened; the deployment check passed, but live UI interaction is not independently verified.
+- **Production deployment verification:** Vercel status check for merged commit `82b7a1a` is **success**. The connected Vercel tools cannot resolve the project and the public URL could not be independently opened; live UI interaction is not independently verified.
 
 ## Implemented features
 
@@ -23,15 +23,17 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 
 ## Profit payout workflow (Nov 26, 2026)
 
-- Applied migrations: `20261126115630_profit_payout_workflow`, `20261126120922_profit_payout_role_guard_null_fix`, and `20261126121202_index_uncovered_foreign_keys`.
+- Applied migrations: `20261126115630_profit_payout_workflow`, `20261126120922_profit_payout_role_guard_null_fix`, `20261126121202_index_uncovered_foreign_keys`, and live migration `20261126173908_unique_profit_payout_per_commission`.
 - Admin/Staff can create a pending payout for an approved, project-eligible profit.
 - Only Admin can mark a pending payout paid; payment date and reference are required.
-- Payouts are full-profit only (no partial payments); one payout per profit, with duplicate creation idempotent.
+- Payouts are full-profit only (no partial payments); one payout per profit.
 - Database trigger guardrails re-check eligibility and amount/currency, lock the profit record, and prevent direct-table bypass.
 - Role checks fail closed for users with missing profiles (SQL `NULL` is explicitly coalesced before comparison).
 - Pending and paid transitions are audit logged; a paid payout triggers partner notification when the partner has a linked portal login.
-- Rollback-only QA was run against the migration before applying; no payout records were created. The live payout table remains empty.
-- Accounts payout UI is merged in PR #1; Vercel check succeeded for the merge commit, but live browser interaction remains unverified.
+- Rollback-only QA was run; no payout records were created. The live payout table remains empty.
+- Accounts payout UI is merged; regression suite and build checks passed for the referenced changes, but live UI interaction remains unverified.
+- Live database read-back verified `commission_id` is NOT NULL, the unique constraint exists, there are no null or duplicate commission IDs, and payout row count is zero.
+- The live advisor found a redundant standalone unique index in addition to the unique constraint. Category 5 cleanup migration is proposed to remove only that duplicate while retaining the constraint.
 
 ## Sale integrity update (Nov 26, 2026)
 
@@ -60,7 +62,7 @@ No temporary QA records were left in the database after rollback tests.
 
 ## Database setup / migration warning
 
-`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has nine migrations recorded, including the profit payout workflow, its fail-closed role-guard fix, and foreign-key indexes. Earlier referral, social-profile, RLS optimization, and security migrations are still not fully synchronized in the repository. Do not recreate the production database or apply the starter schema to it. Migration-source reconciliation is still required before a clean environment can be provisioned safely from Git.
+`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has ten migrations recorded. Migration-source reconciliation is ongoing; a payout uniqueness migration timestamp mismatch and its redundant index are being addressed in a Category 5 pull request. Do not recreate the production database or apply the starter schema to it until the migration chain has been reconciled and clean-install validation passes.
 
 For the existing project, changes are applied through reviewed Supabase migrations. For local development:
 
@@ -68,21 +70,32 @@ For the existing project, changes are applied through reviewed Supabase migratio
 2. From `Sunora-Channel-Partner`, run `npm install`.
 3. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 4. Run `npm run dev`.
-5. Run `npm run build` for the production build.
+5. Run `npm test` and `npm run build`.
 
 Never expose the Supabase service-role key in any `VITE_*` variable or commit secrets.
 
-## Remaining roadmap
+## Category ledger and remaining roadmap
 
-- Accounts payout workflow UI and build/deployment validation are complete (PR #1, regression suite in PR #4, and production deployment verified). PR #4 also adds a one-payout-per-profit unique-index migration, but it is merged and **not applied to production** because Supabase migration execution is blocked in the current environment. Live UI interaction remains deferred to Category 2.
-- Referral status and conversion notifications to partners (status updates are currently stored; partner notification coverage is incomplete).
-- Monthly statement PDF generation and automated email delivery.
-- Google Sheets sync (the current folder is documentation only; no active sync function).
-- Zoho Books API integration.
-- Recursive referral-branch visibility for partner logins (current access is limited to the partner and direct children).
-- Full end-to-end UI testing of registration, invitation delivery, password setup, partner login, referrals, invoice, profit approval, completion, and payout.
-- Reconcile the database's applied migration history and restore a complete clean-install schema/migration chain.
-- Security follow-up: enable leaked-password protection in Supabase Auth after configuration review (no connected setting tool is available). The unindexed-FK warning was cleared by adding 14 FK-supporting indexes. The advisor now reports 24 unused indexes (14 new FK-support indexes plus 10 pre-existing); nothing is being dropped blindly. The no-policy RLS warning on `partner_month_sequences` is intentional: authenticated table SELECT/INSERT/UPDATE privileges are denied, and IDs are generated by the protected database function. Six SECURITY DEFINER functions remain callable by authenticated users for role lookup and guarded sale/payout RPCs; anonymous execution is denied.
+- **Category 1:** Done & Verified.
+- **Category 2:** Done but Not Yet Verified — manual verification is parked. Do not run live invitation/email, registration/activation, password/login, onboarding, live referral UI/attribution, or live payout UI tests until requested.
+- **Category 3:** Done & Verified.
+- **Category 4:** Done & Verified — payout uniqueness migration applied and read-back verified in the live database.
+- **Category 5:** Current focus; remaining implementation and safe verification:
+  - Partner referral status/conversion notification coverage (without live invitation/onboarding testing).
+  - Monthly statement PDF generation and email delivery scaffolding (no real emails).
+  - Google Sheets sync implementation with safe dry-run, retry and idempotency (no external writes).
+  - Zoho Books integration scaffolding only, pending credentials and authorization.
+  - Recursive referral-branch visibility with secure RLS checks.
+  - Migration-source reconciliation and clean-install chain.
+  - Security/performance cleanup and acceptance tests outside Category 2.
+
+## Security and performance notes
+
+- Supabase advisor flags `partner_month_sequences` as RLS enabled without policies. This is intentional: client SELECT/INSERT/UPDATE privileges are denied and IDs are allocated through the protected database function.
+- Six `SECURITY DEFINER` functions remain executable by authenticated users for role lookup and guarded sale/payout RPCs; anonymous execution is denied. Review their scopes carefully before changing grants.
+- Leaked-password protection is reported disabled; enablement requires an Auth configuration review and is not yet verified.
+- The performance advisor reports 24 unused indexes (14 FK-supporting indexes plus 10 pre-existing). Do not drop them without query and FK analysis.
+- A duplicate unique index on `commission_payouts.commission_id` is identified for safe removal while preserving the existing unique constraint.
 
 ## Finance rules currently in code
 
