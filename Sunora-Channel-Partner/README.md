@@ -23,11 +23,12 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 
 ## Profit payout workflow (Nov 26, 2026)
 
-- Applied migration: `20261126115630_profit_payout_workflow`.
+- Applied migrations: `20261126115630_profit_payout_workflow` and `20261126120922_profit_payout_role_guard_null_fix`.
 - Admin/Staff can create a pending payout for an approved, project-eligible profit.
 - Only Admin can mark a pending payout paid; payment date and reference are required.
 - Payouts are full-profit only (no partial payments); one payout per profit, with duplicate creation idempotent.
 - Database trigger guardrails re-check eligibility and amount/currency, lock the profit record, and prevent direct-table bypass.
+- Role checks fail closed for users with missing profiles (SQL `NULL` is explicitly coalesced before comparison).
 - Pending and paid transitions are audit logged; a paid payout triggers partner notification when the partner has a linked portal login.
 - Rollback-only QA was run against the migration before applying; no payout records were created. The live payout table remains empty.
 - Accounts payout UI is merged in PR #1; Vercel check succeeded for the merge commit, but live browser interaction remains unverified.
@@ -59,7 +60,7 @@ No temporary QA records were left in the database after rollback tests.
 
 ## Database setup / migration warning
 
-`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has seven migrations recorded, including the new profit payout workflow migration. Earlier referral, social-profile, RLS optimization, and security migrations are still not fully synchronized in the repository. Do not recreate the production database or apply the starter schema to it. Migration-source reconciliation is still required before a clean environment can be provisioned safely from Git.
+`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has eight migrations recorded, including the profit payout workflow and its fail-closed role-guard fix. Earlier referral, social-profile, RLS optimization, and security migrations are still not fully synchronized in the repository. Do not recreate the production database or apply the starter schema to it. Migration-source reconciliation is still required before a clean environment can be provisioned safely from Git.
 
 For the existing project, changes are applied through reviewed Supabase migrations. For local development:
 
