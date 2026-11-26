@@ -51,7 +51,7 @@ export function buildPartnerStatementPdf(statement = {}) {
     const obj = id + ' 0 obj\n' + body + '\nendobj\n'; pdf += obj; byteLength += encoder.encode(obj).length;
   });
   const xref = byteLength;
-  pdf += 'xref\n0 ' + (objects.length + 1) + '\n0000000000 65535 f \n";
+  pdf += 'xref\n0 ' + (objects.length + 1) + '\n0000000000 65535 f \n';
 offsets.slice(1).forEach(offset => { pdf += String(offset).padStart(10, '0') + ' 00000 n \n'; });
   pdf += 'trailer\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF';
   return encoder.encode(pdf);
