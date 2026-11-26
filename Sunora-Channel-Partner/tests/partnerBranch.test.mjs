@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const migrationPath = new URL('../supabase/migrations/20261126203500_partner_recursive_branch_read.sql', import.meta.url);
+const migrationPath = new URL('../supabase/migrations/20261126203714_partner_recursive_branch_read.sql', import.meta.url);
 const appPath = new URL('../src/App.jsx', import.meta.url);
 
 test('recursive branch RPC is cycle-safe and exposes only display fields', async () => {
@@ -17,6 +17,7 @@ test('recursive branch RPC is cycle-safe and exposes only display fields', async
   for (const sensitiveColumn of ['email', 'phone', 'date_of_birth', 'social_media_profiles']) assert.ok(!sql.includes(sensitiveColumn));
   assert.match(sql, /REVOKE ALL ON FUNCTION public\.sunora_get_partner_branch\(\) FROM PUBLIC, anon/);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.sunora_get_partner_branch\(\) TO authenticated/);
+  assert.match(sql, /p\.id = public\.current_partner_id\(\)/);
 });
 
 test('partner network view uses the recursive RPC while retaining own-branch root', async () => {
@@ -25,4 +26,11 @@ test('partner network view uses the recursive RPC while retaining own-branch roo
   assert.ok(app.includes('const branchNetworkRows = isStaff ? partners : (branchPartners.length ? branchPartners : scopedPartners);'));
   assert.ok(app.includes('branchNetworkRows.filter(p => p.id === ownPartner?.id)'));
   assert.ok(app.includes('all={isStaff ? partners : branchNetworkRows}'));
+});
+test('recursive branch RPC seed is explicitly restricted to partner role', async () => {
+  const sql = await readFile(new URL('../supabase/migrations/20261126204000_partner_branch_partner_role_guard.sql', import.meta.url), 'utf8');
+  assert.match(sql, /p\.id = public\.current_partner_id\(\)/);
+  assert.match(sql, /public\.current_user_role\(\) = 'partner'/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.sunora_get_partner_branch\(\) FROM PUBLIC, anon/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.sunora_get_partner_branch\(\) TO authenticated/);
 });
