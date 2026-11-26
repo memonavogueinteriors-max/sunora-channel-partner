@@ -21,7 +21,7 @@ test('recursive branch RPC is cycle-safe and exposes only display fields', async
 
 test('partner network view uses the recursive RPC while retaining own-branch root', async () => {
   const app = await readFile(appPath, 'utf8');
-  assert.ok(app.includes('supabase.rpc(\\'sunora_get_partner_branch\\')'));
+  assert.ok(app.includes("supabase.rpc('sunora_get_partner_branch')"));
   assert.ok(app.includes('const branchNetworkRows = isStaff ? partners : (branchPartners.length ? branchPartners : scopedPartners);'));
   assert.ok(app.includes('branchNetworkRows.filter(p => p.id === ownPartner?.id)'));
   assert.ok(app.includes('all={isStaff ? partners : branchNetworkRows}'));
