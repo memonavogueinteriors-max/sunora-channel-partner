@@ -3,6 +3,7 @@ name: SUNORA Channel Partner Build
 on:
   push:
     branches:
+      - main
       - feature/profit-payout-ui
   pull_request:
     branches:
