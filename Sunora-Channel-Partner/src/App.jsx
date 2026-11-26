@@ -2142,13 +2142,14 @@ async function addPartner(e) {
 
                   <div className="table-wrap">
                     <table>
-                      <thead><tr><th>Currency</th><th>Eligible profit</th><th>Paid</th><th>Outstanding estimate</th></tr></thead>
+                      <thead><tr><th>Currency</th><th>Eligible profit</th><th>Paid</th><th>Pending</th><th>Outstanding (incl. pending)</th></tr></thead>
                       <tbody>
                         {statementCommissionTotals.map(x => (
                           <tr key={x.currency}>
                             <td><b>{x.currency}</b></td>
                             <td>{money(x.eligible, x.currency)}</td>
                             <td>{money(x.paid, x.currency)}</td>
+                            <td>{money(x.pending, x.currency)}</td>
                             <td className="gold-text">{money(x.outstanding, x.currency)}</td>
                           </tr>
                         ))}
