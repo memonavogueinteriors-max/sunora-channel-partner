@@ -77,8 +77,8 @@ test('cleanup migration verifies the exact retained commission_id constraint and
 
 test('existing payout RPC serializes by commission and returns an existing payout on retry', async () => {
   const sql = await readFile(new URL('../supabase/migrations/20261126115630_profit_payout_workflow.sql', import.meta.url), 'utf8');
-  assert.ok(sql.includes('WHERE id = p_commission_id FOR UPDATE'));
-  assert.ok(sql.includes('WHERE commission_id = p_commission_id FOR UPDATE'));
+  assert.match(sql, /WHERE id = p_commission_id\s+FOR UPDATE/i);
+  assert.match(sql, /WHERE commission_id = p_commission_id\s+FOR UPDATE/i);
   assert.match(sql, /IF FOUND THEN\s+RETURN v_existing/i);
   assert.ok(sql.includes('NEW.amount IS DISTINCT FROM v_profit'));
   assert.ok(sql.includes('NEW.currency IS DISTINCT FROM v_currency'));
