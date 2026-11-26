@@ -87,3 +87,14 @@ td{color:#6f5d45}tbody tr:hover{background:#faf6ee}td b{color:#59472f}td small{c
 .form-grid textarea{width:100%;min-height:90px;padding:11px 12px;border:1px solid #dfd2bd;border-radius:8px;background:#fffefa;color:#59472f;font:inherit;resize:vertical}
 .form-grid textarea:focus{outline:none;border-color:#b8872f;box-shadow:0 0 0 2px #b8872f22}
 @media(max-width:760px){.audit-item{grid-template-columns:1fr}.audit-item time{grid-row:2}.admin-actions{min-width:130px}}
+
+/* Partner social profiles and referral pipeline */
+.social-profile-fields{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--surface2)}
+.social-profile-heading{display:grid;gap:4px;color:var(--text)}
+.social-profile-heading small{font-size:11px;color:var(--muted);font-weight:400}
+.social-profile-row{display:grid!important;grid-template-columns:18px minmax(85px,110px) minmax(0,1fr);align-items:center!important;gap:10px!important;padding:8px;border:1px solid var(--line);border-radius:7px;background:var(--surface)!important}
+.social-profile-row input[type=checkbox]{width:17px;height:17px;accent-color:var(--gold)}
+.social-profile-row input[type=text]{min-width:0}
+.referral-form{padding:16px;margin:16px 0;background:var(--surface2);border:1px solid var(--line);border-radius:9px}
+.referral-status-select{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px}
+@media(max-width:760px){.social-profile-row{grid-template-columns:18px 85px minmax(0,1fr)}}
