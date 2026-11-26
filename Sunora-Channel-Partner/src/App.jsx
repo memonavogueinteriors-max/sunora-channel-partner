@@ -135,7 +135,8 @@ export default function App() {
     phone: '',
     date_of_birth: '',
     partner_type: 'Interior Designer',
-    parent_partner_id: ''
+    parent_partner_id: '',
+    social_media_profiles: {}
   });
 
   const [saleForm, setSaleForm] = useState({
@@ -610,7 +611,8 @@ async function addPartner(e) {
   try {
     const payload = {
       ...partnerForm,
-      parent_partner_id: partnerForm.parent_partner_id || null
+      parent_partner_id: partnerForm.parent_partner_id || null,
+      social_media_profiles: Object.fromEntries(Object.entries(partnerForm.social_media_profiles || {}).filter(([platform, value]) => String(value || '').trim()))
     };
 
     // Step 1: Create the partner record in Supabase.
@@ -655,7 +657,8 @@ if (inviteError) {
       phone: '',
       date_of_birth: '',
       partner_type: 'Interior Designer',
-      parent_partner_id: ''
+      parent_partner_id: '',
+      social_media_profiles: {}
     });
 
     await loadData();
@@ -1881,6 +1884,18 @@ if (inviteError) {
                 <option>Interior Designer</option><option>Sales Agent</option><option>Architect</option><option>Wellness Consultant</option><option>Other</option>
               </select>
             </label>
+            <div className="full-field social-profile-fields">
+              <div className="social-profile-heading"><b>Social media profiles</b><small>Select platforms and add the partner’s handle or profile URL.</small></div>
+              {['Instagram', 'Facebook', 'LinkedIn', 'TikTok', 'YouTube', 'X', 'Website', 'Other'].map(platform => (
+                <label className="social-profile-row" key={platform}>
+                  <input type="checkbox" checked={Boolean(partnerForm.social_media_profiles?.[platform])} onChange={e => setPartnerForm(f => ({ ...f, social_media_profiles: { ...(f.social_media_profiles || {}), [platform]: e.target.checked ? (f.social_media_profiles?.[platform] || '') : '' } }))} />
+                  <span>{platform}</span>
+                  {partnerForm.social_media_profiles?.[platform] !== undefined && Boolean(partnerForm.social_media_profiles?.[platform]) && (
+                    <input type="text" value={partnerForm.social_media_profiles[platform] || ''} placeholder="@username or profile URL" onChange={e => setPartnerForm(f => ({ ...f, social_media_profiles: { ...(f.social_media_profiles || {}), [platform]: e.target.value } }))} />
+                  )}
+                </label>
+              ))}
+            </div>
             <label>Referred by
               <select value={partnerForm.parent_partner_id} onChange={e => setPartnerForm({ ...partnerForm, parent_partner_id: e.target.value })}>
                 <option value="">Direct registration (no parent)</option>
