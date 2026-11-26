@@ -7,7 +7,7 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 - **Production URL:** https://sunora-channel-partner.vercel.app
 - **Supabase project:** `gzuozbhrzwbugbkdeogb` (active/healthy)
 - **Partner invitation Edge Function:** `partner-invite` — active, version 6, JWT required
-- **Production deployment verification:** GitHub's Vercel status check reported success for the recent commits. The connected Vercel tools cannot resolve this project and the public URL could not be fetched in this verification session, so the exact production build is not independently confirmed here.
+- **Production deployment verification:** The production URL is currently inaccessible to the connected verification tools. The Accounts payout UI is in PR #1; its Vercel check is pending, and no deployment has been independently verified.
 
 ## Implemented features
 
@@ -20,6 +20,17 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 - Profit approval and project-completion checks; profit eligibility requires Admin approval plus all completion checks.
 - Partner and admin dashboards, monthly report, CSV export, and partner monthly statement preview.
 - Audit log, in-app notifications, and payout ledger tables.
+
+## Profit payout workflow (Nov 26, 2026)
+
+- Applied migration: `20261126115630_profit_payout_workflow`.
+- Admin/Staff can create a pending payout for an approved, project-eligible profit.
+- Only Admin can mark a pending payout paid; payment date and reference are required.
+- Payouts are full-profit only (no partial payments); one payout per profit, with duplicate creation idempotent.
+- Database trigger guardrails re-check eligibility and amount/currency, lock the profit record, and prevent direct-table bypass.
+- Pending and paid transitions are audit logged; a paid payout triggers partner notification when the partner has a linked portal login.
+- Rollback-only QA was run against the migration before applying; no payout records were created. The live payout table remains empty.
+- Accounts UI is proposed in PR #1 and is not merged or production-deployed pending build/deployment validation.
 
 ## Sale integrity update (Nov 26, 2026)
 
@@ -48,7 +59,7 @@ No temporary QA records were left in the database after rollback tests.
 
 ## Database setup / migration warning
 
-`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has six migrations recorded, but the earlier referral, social-profile, RLS optimization, and security migrations are not fully synchronized in the repository. Do not recreate the production database or apply the starter schema to it. Migration-source reconciliation is still required before a clean environment can be provisioned safely from Git.
+`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has seven migrations recorded, including the new profit payout workflow migration. Earlier referral, social-profile, RLS optimization, and security migrations are still not fully synchronized in the repository. Do not recreate the production database or apply the starter schema to it. Migration-source reconciliation is still required before a clean environment can be provisioned safely from Git.
 
 For the existing project, changes are applied through reviewed Supabase migrations. For local development:
 
@@ -62,7 +73,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 
 ## Remaining roadmap
 
-- Admin/Accounts profit-payout creation, approval, payable-balance validation, payout idempotency, and payment confirmation workflow (the payout table and partner read history exist, but no admin payout-entry UI is currently present).
+- Accounts payout UI/build/deployment validation (backend RPCs and database guardrails are implemented and applied; UI is in PR #1 pending build/deployment verification).
 - Referral status and conversion notifications to partners (status updates are currently stored; partner notification coverage is incomplete).
 - Monthly statement PDF generation and automated email delivery.
 - Google Sheets sync (the current folder is documentation only; no active sync function).
