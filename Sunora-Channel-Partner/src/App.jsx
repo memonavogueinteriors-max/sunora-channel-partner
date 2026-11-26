@@ -1859,7 +1859,7 @@ async function addPartner(e) {
             {partnerNotificationError && <div className="alert warning">Notifications could not be loaded: {partnerNotificationError}</div>}
             {partnerNotificationsLoading ? (
               <Empty text="Loading your notifications…" />
-            ) : partnerNotifications.length ? (
+            ) : partnerNotificationError ? null : partnerNotifications.length ? (
               <div className="audit-list">
                 {partnerNotifications.map(n => (
                   <div className="audit-item" key={n.id}>
