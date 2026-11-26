@@ -852,7 +852,7 @@ if (inviteError) {
     flash(
       tier.rate === null
         ? 'Invoice saved. Profit rate above 150 panels requires manual approval.'
-        : 'Invoice and commission record saved. Commission is recorded, not yet approved or payable.'
+        : 'Invoice and profit record saved. Profit is recorded, not yet approved or payable.'
     );
   }
 
@@ -891,8 +891,8 @@ if (inviteError) {
 
     flash(
       commissionDecision === 'approved'
-        ? 'Commission approved. Eligibility is checked separately.'
-        : 'Commission rejected. The reason has been recorded.'
+        ? 'Profit approved. Eligibility is checked separately.'
+        : 'Profit rejected. The reason has been recorded.'
     );
   }
 
@@ -904,7 +904,7 @@ if (inviteError) {
     const rate = Number(manualRate);
 
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
-      setError('Enter a commission rate between 0 and 100.');
+      setError('Enter a profit rate between 0 and 100.');
       return;
     }
 
@@ -935,7 +935,7 @@ if (inviteError) {
     setSelectedRateCommission(null);
     setManualRate('');
     await loadData();
-    flash('Manual commission rate approved. You can now approve or reject this commission.');
+    flash('Manual profit rate approved. You can now approve or reject this profit.');
   }
 
   async function saveProjectReview(e) {
@@ -966,7 +966,7 @@ if (inviteError) {
 
     setSelectedProject(null);
     await loadData();
-    flash('Project completion review saved. Commission eligibility has been recalculated.');
+    flash('Project completion review saved. Profit eligibility has been recalculated.');
   }
 
   function openCommissionDecision(c, decision) {
@@ -1336,7 +1336,7 @@ if (inviteError) {
                   {isStaff && (
                     <button onClick={() => setShowSale(true)}>
                       <span className="quick-icon"><ReceiptText /></span>
-                      <span><b>Record invoice</b><small>Create invoice and commission record</small></span>
+                      <span><b>Record invoice</b><small>Create invoice and profit record</small></span>
                       <ArrowUpRight />
                     </button>
                   )}
@@ -1426,11 +1426,11 @@ if (inviteError) {
 
         {tab === 'Profit Ledger' && (
           <section className="panel">
-            <PanelHeading title="Profit ledger" subtitle="Per-invoice commission, calculated before VAT" />
+            <PanelHeading title="Profit ledger" subtitle="Per-invoice profit, calculated before VAT" />
 
             <div className="ledger-summary commission-summary">
-              <div><span>Commission records</span><b>{scopedCommissions.length}</b></div>
-              <div><span>Awaiting manual rate</span><b>{scopedCommissions.filter(c => c.rate_status === 'awaiting_manual_rate').length}</b></div>
+              <div><span>Profit records</span><b>{scopedCommissions.length}</b></div>
+              <div><span>Awaiting manual profit rate</span><b>{scopedCommissions.filter(c => c.rate_status === 'awaiting_manual_rate').length}</b></div>
               <div><span>Approved</span><b>{scopedCommissions.filter(c => c.approval_status === 'approved').length}</b></div>
             </div>
 
@@ -1439,7 +1439,7 @@ if (inviteError) {
                 <thead>
                   <tr>
                     <th>Invoice</th><th>Partner</th><th>Panels</th><th>Tier</th>
-                    <th>Profit base</th><th>Rate</th><th>Commission</th>
+                    <th>Profit base</th><th>Rate</th><th>Profit</th>
                     <th>Approval</th><th>Eligibility</th>
                     {isAdmin && <th>Admin actions</th>}
                   </tr>
@@ -1481,7 +1481,7 @@ if (inviteError) {
                   ))}
                 </tbody>
               </table>
-              {!scopedCommissions.length && <Empty text="No commission records yet. New invoices will appear here." />}
+              {!scopedCommissions.length && <Empty text="No profit records yet. New invoices will appear here." />}
             </div>
 
             {isAdmin && (
@@ -1653,7 +1653,7 @@ if (inviteError) {
               <Stat icon={ReceiptText} label="Invoices" value={reportSales.length} foot="Invoice date in selected month" />
               <Stat icon={Users} label="Panels sold" value={reportSales.reduce((sum, s) => sum + Number(s.panel_quantity ?? s.quantity ?? 0), 0)} foot="Total panel quantity" />
               <Stat icon={TrendingUp} label="Sales in AED equivalent" value={money(reportTotalAED)} foot="Includes VAT · stored exchange rates" />
-              <Stat icon={BadgePercent} label="Eligible commissions" value={eligibleCommissions.length} foot="Approved and project eligible" />
+              <Stat icon={BadgePercent} label="Eligible profit records" value={eligibleCommissions.length} foot="Approved and project eligible" />
             </div>
 
             <div className="report-section">
@@ -1686,7 +1686,7 @@ if (inviteError) {
               <div className="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>Partner</th><th>Partner ID</th><th>Invoices</th><th>Panels</th><th>Sales AED equivalent</th><th>Commission records</th><th>Eligible</th></tr>
+                    <tr><th>Partner</th><th>Partner ID</th><th>Invoices</th><th>Panels</th><th>Sales AED equivalent</th><th>Profit records</th><th>Eligible</th></tr>
                   </thead>
                   <tbody>
                     {partnerPerformance.map(x => (
@@ -1707,16 +1707,16 @@ if (inviteError) {
             </div>
 
             <div className="report-section">
-              <PanelHeading title="Commission summary" subtitle="Approval and eligibility are separate checks" />
+              <PanelHeading title="Profit summary" subtitle="Approval and eligibility are separate checks" />
               <div className="report-stats three">
-                <Stat icon={BadgePercent} label="Commission records" value={reportCommissions.length} foot="Created for selected-month invoices" />
+                <Stat icon={BadgePercent} label="Profit records" value={reportCommissions.length} foot="Created for selected-month invoices" />
                 <Stat icon={CheckCircle2} label="Approved records" value={approvedCommissions.length} foot="Admin-approved commissions" />
                 <Stat icon={CircleAlert} label="Rejected records" value={rejectedCommissions.length} foot="Excluded from payable totals" />
               </div>
 
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>Currency</th><th>Approved commission</th><th>Eligible commission</th></tr></thead>
+                  <thead><tr><th>Currency</th><th>Approved profit</th><th>Eligible profit</th></tr></thead>
                   <tbody>
                     {commissionTotalsByCurrency.map(x => (
                       <tr key={x.currency}>
@@ -1727,12 +1727,12 @@ if (inviteError) {
                     ))}
                   </tbody>
                 </table>
-                {!commissionTotalsByCurrency.length && <Empty text="No commission records for this month." />}
+                {!commissionTotalsByCurrency.length && <Empty text="No profit records for this month." />}
               </div>
             </div>
 
             <div className="report-section">
-              <PanelHeading title="Commission payouts" subtitle="Payout records dated in the selected month" />
+              <PanelHeading title="Profit payments" subtitle="Payout records dated in the selected month" />
               <div className="table-wrap">
                 <table>
                   <thead><tr><th>Currency</th><th>Paid</th><th>Pending</th></tr></thead>
@@ -1746,7 +1746,7 @@ if (inviteError) {
                     ))}
                   </tbody>
                 </table>
-                {!payoutTotalsByCurrency.length && <Empty text="No commission payouts recorded in this month." />}
+                {!payoutTotalsByCurrency.length && <Empty text="No profit payments recorded in this month." />}
               </div>
             </div>
 
@@ -1775,7 +1775,7 @@ if (inviteError) {
             </div>
 
             <div className="form-hint report-note">
-              Profit base is taken from the stored commission records and excludes VAT. Project costs are displayed separately and are not added again to the commission base. This report is read-only.
+              Profit base is taken from the stored profit records and excludes VAT. Project costs are displayed separately and are not added again to the commission base. This report is read-only.
             </div>
           </section>
         )}
@@ -1785,7 +1785,7 @@ if (inviteError) {
           <section className="panel">
             <PanelHeading
               title="My Monthly Statement"
-              subtitle="Your own invoices, commissions and payout history"
+              subtitle="Your own invoices, profits and payment history"
               action={
                 <button className="secondary-btn" onClick={exportPartnerStatement} disabled={!ownPartner}>
                   <Download size={16} /> Export my statement CSV
@@ -1820,7 +1820,7 @@ if (inviteError) {
                 <div className="report-stats">
                   <Stat icon={ReceiptText} label="My invoices" value={statementSales.length} foot="Selected month" />
                   <Stat icon={Users} label="My panels" value={statementSales.reduce((sum, s) => sum + Number(s.panel_quantity ?? s.quantity ?? 0), 0)} foot="Panels invoiced" />
-                  <Stat icon={BadgePercent} label="My commission records" value={statementCommissions.length} foot="Selected-month invoices" />
+                  <Stat icon={BadgePercent} label="My profit records" value={statementCommissions.length} foot="Selected-month invoices" />
                   <Stat icon={CreditCard} label="My payouts" value={statementPayouts.filter(p => p.status === 'paid').length} foot="Paid payout records" />
                 </div>
 
@@ -1848,10 +1848,10 @@ if (inviteError) {
                 </div>
 
                 <div className="report-section">
-                  <PanelHeading title="My commissions" subtitle="Approval and project eligibility status for your invoices" />
+                  <PanelHeading title="My profits" subtitle="Approval and project eligibility status for your invoices" />
                   <div className="table-wrap">
                     <table>
-                      <thead><tr><th>Invoice</th><th>Panels</th><th>Currency</th><th>Profit base</th><th>Rate</th><th>Commission</th><th>Approval</th><th>Eligibility</th></tr></thead>
+                      <thead><tr><th>Invoice</th><th>Panels</th><th>Currency</th><th>Profit base</th><th>Rate</th><th>Profit</th><th>Approval</th><th>Eligibility</th></tr></thead>
                       <tbody>
                         {statementCommissions.map(c => (
                           <tr key={c.id}>
@@ -1867,12 +1867,12 @@ if (inviteError) {
                         ))}
                       </tbody>
                     </table>
-                    {!statementCommissions.length && <Empty text="No commission records for this month." />}
+                    {!statementCommissions.length && <Empty text="No profit records for this month." />}
                   </div>
 
                   <div className="table-wrap">
                     <table>
-                      <thead><tr><th>Currency</th><th>Eligible commission</th><th>Paid</th><th>Outstanding estimate</th></tr></thead>
+                      <thead><tr><th>Currency</th><th>Eligible profit</th><th>Paid</th><th>Outstanding estimate</th></tr></thead>
                       <tbody>
                         {statementCommissionTotals.map(x => (
                           <tr key={x.currency}>
@@ -1889,7 +1889,7 @@ if (inviteError) {
                 </div>
 
                 <div className="report-section">
-                  <PanelHeading title="My commission payout history" subtitle="Payouts linked to your own commission records" />
+                  <PanelHeading title="My profit payment history" subtitle="Payouts linked to your own profit records" />
                   <div className="table-wrap">
                     <table>
                       <thead><tr><th>Payment date</th><th>Amount</th><th>Currency</th><th>Status</th><th>Reference</th></tr></thead>
@@ -1905,12 +1905,12 @@ if (inviteError) {
                         ))}
                       </tbody>
                     </table>
-                    {!statementPayouts.length && <Empty text="No commission payouts recorded for this month." />}
+                    {!statementPayouts.length && <Empty text="No profit payments recorded for this month." />}
                   </div>
                 </div>
 
                 <div className="form-hint report-note">
-                  This is a read-only statement preview. Commission amounts are not payable until Admin approval and all project-completion checks are satisfied. Outstanding values are estimates based on the selected month's eligible commissions and linked paid payouts.
+                  This is a read-only statement preview. Profit amounts are not payable until Admin approval and all project-completion checks are satisfied. Outstanding values are estimates based on the selected month's eligible commissions and linked paid payouts.
                 </div>
               </>
             )}
@@ -2002,25 +2002,25 @@ if (inviteError) {
               <div><span>Subtotal excluding VAT</span><b>{money(invoiceSubtotal, saleForm.invoice_currency)}</b></div>
               <div><span>VAT (5%)</span><b>{money(vatAmount, saleForm.invoice_currency)}</b></div>
               <div className="breakdown-total"><span>Invoice total including VAT</span><b>{money(invoiceTotal, saleForm.invoice_currency)}</b></div>
-              <div className="breakdown-commission"><span>Commission tier · {tier.label}</span><b>{estimatedCommission === null ? 'Manual rate required' : money(estimatedCommission, saleForm.invoice_currency)}</b></div>
-              <small>Commission is calculated on the pre-VAT subtotal. VAT is excluded. Existing savings are kept separately in the legacy savings ledger.</small>
+              <div className="breakdown-commission"><span>Profit tier · {tier.label}</span><b>{estimatedCommission === null ? 'Manual rate required' : money(estimatedCommission, saleForm.invoice_currency)}</b></div>
+              <small>Profit is calculated on the pre-VAT subtotal. VAT is excluded. Existing savings are kept separately in the legacy savings ledger.</small>
               {saleForm.invoice_currency === 'AED' && <small>USD base price conversion uses the fixed business rate: 1 USD = AED 3.68.</small>}
             </div>
 
             <div className="form-hint full-field">
-              <Wallet size={17} /> Legacy savings estimate: <b>{money(invoiceTotal * Number(saleForm.savings_rate || 0) / 100, saleForm.invoice_currency)}</b>. This is separate from the new commission ledger.
+              <Wallet size={17} /> Legacy savings estimate: <b>{money(invoiceTotal * Number(saleForm.savings_rate || 0) / 100, saleForm.invoice_currency)}</b>. This is separate from the new profit ledger.
             </div>
 
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setShowSale(false)}>Cancel</button>
-              <button className="primary-btn" disabled={busy || invoiceQty < 1 || invoiceUnit < 0 || extraCost < 0}>{busy ? 'Saving…' : 'Save invoice & commission'}</button>
+              <button className="primary-btn" disabled={busy || invoiceQty < 1 || invoiceUnit < 0 || extraCost < 0}>{busy ? 'Saving…' : 'Save invoice & profit'}</button>
             </div>
           </form>
         </Modal>
       )}
 
       {selectedRateCommission && (
-        <Modal title="Approve manual commission rate" close={() => setSelectedRateCommission(null)}>
+        <Modal title="Approve manual profit rate" close={() => setSelectedRateCommission(null)}>
           <form className="form-grid" onSubmit={saveManualRate}>
             <div className="form-hint full-field">
               <b>{selectedRateCommission.sale?.invoice_number || 'Invoice'}</b> · {selectedRateCommission.panel_quantity} panels · Base {money(selectedRateCommission.commissionable_base_amount, selectedRateCommission.commission_currency)}. This rate requires Admin approval.
@@ -2029,7 +2029,7 @@ if (inviteError) {
               <input required type="number" min="0" max="100" step="0.01" value={manualRate} onChange={e => setManualRate(e.target.value)} placeholder="Enter approved rate" />
             </label>
             <div className="form-hint full-field">
-              Calculated commission: {money(Number(selectedRateCommission.commissionable_base_amount || 0) * Number(manualRate || 0) / 100, selectedRateCommission.commission_currency)}
+              Calculated profit: {money(Number(selectedRateCommission.commissionable_base_amount || 0) * Number(manualRate || 0) / 100, selectedRateCommission.commission_currency)}
             </div>
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setSelectedRateCommission(null)}>Cancel</button>
@@ -2040,15 +2040,15 @@ if (inviteError) {
       )}
 
       {selectedCommission && (
-        <Modal title={commissionDecision === 'approved' ? 'Approve commission' : 'Reject commission'} close={() => setSelectedCommission(null)}>
+        <Modal title={commissionDecision === 'approved' ? 'Approve profit' : 'Reject profit'} close={() => setSelectedCommission(null)}>
           <form className="form-grid" onSubmit={saveCommissionDecision}>
             <div className="form-hint full-field">
               <b>{selectedCommission.sale?.invoice_number || 'Invoice'}</b> · {selectedCommission.partner?.full_name || 'Partner'} · {selectedCommission.commission_amount === null ? 'Manual rate pending' : money(selectedCommission.commission_amount, selectedCommission.commission_currency)}
-              <br />Approval does not itself make the commission payable. Project completion must be verified separately.
+              <br />Approval does not itself make the profit payable. Project completion must be verified separately.
             </div>
             <label className="full-field">
               {commissionDecision === 'rejected' ? 'Rejection reason *' : 'Approval comments (optional)'}
-              <textarea rows="4" value={approvalComments} onChange={e => setApprovalComments(e.target.value)} placeholder={commissionDecision === 'rejected' ? 'Explain why this commission is rejected…' : 'Optional approval note'} />
+              <textarea rows="4" value={approvalComments} onChange={e => setApprovalComments(e.target.value)} placeholder={commissionDecision === 'rejected' ? 'Explain why this profit is rejected…' : 'Optional approval note'} />
             </label>
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setSelectedCommission(null)}>Cancel</button>
@@ -2061,7 +2061,7 @@ if (inviteError) {
       {selectedProject && (
         <Modal title={`Project completion · ${selectedProject.invoice_number || ''}`} close={() => setSelectedProject(null)}>
           <form className="form-grid" onSubmit={saveProjectReview}>
-            <div className="form-hint full-field">All four checks must be confirmed before the linked approved commission can become eligible. Only Admin can change these checks.</div>
+            <div className="form-hint full-field">All four checks must be confirmed before the linked approved profit can become eligible. Only Admin can change these checks.</div>
             {[
               ['final_client_payment_received', 'Final client payment received'],
               ['final_deliverables_submitted', 'Final deliverables submitted'],
@@ -2105,7 +2105,7 @@ if (inviteError) {
             <label>Notes
               <input value={paymentForm.notes} onChange={e => setPaymentForm({ ...paymentForm, notes: e.target.value })} />
             </label>
-            <div className="form-hint"><CircleAlert size={17} /> This records a legacy savings payment, not a commission payout.</div>
+            <div className="form-hint"><CircleAlert size={17} /> This records a legacy savings payment, not a profit payment.</div>
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setShowPayment(false)}>Cancel</button>
               <button className="primary-btn" disabled={busy}>{busy ? 'Saving…' : 'Record payment'}</button>
