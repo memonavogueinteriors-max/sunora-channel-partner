@@ -24,7 +24,8 @@ test('referral status notifications fire only for status changes and target the 
     'EXECUTE FUNCTION public.sunora_partner_referral_status_notification()',
     'REVOKE ALL ON FUNCTION public.sunora_partner_referral_status_notification()'
   ]) assert.ok(sql.includes(fragment), 'Missing notification migration fragment: ' + fragment);
-  assert.ok(!sql.toLowerCase().includes('email'));
+  assert.ok(!sql.includes('http'));
+  assert.ok(!sql.includes('supabase.functions.invoke'));
 });
 
 test('notification text distinguishes conversion, lost, and ordinary status updates', async () => {
