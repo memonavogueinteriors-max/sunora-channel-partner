@@ -763,90 +763,31 @@ async function addPartner(e) {
     setBusy(true);
     setError('');
 
-    const payload = {
-      partner_id: saleForm.partner_id,
-      referral_id: saleForm.referral_id || null,
-      invoice_number: saleForm.invoice_number.trim(),
-      invoice_date: saleForm.invoice_date,
-      product_description: `Sunora ${saleForm.panel_size} Wellness Panel`,
-      quantity: invoiceQty,
-      unit_price: invoiceUnit,
-      invoice_amount: Number(invoiceTotal.toFixed(2)),
-      savings_rate: Number(saleForm.savings_rate),
-      notes: saleForm.notes,
-      country: saleForm.country,
-      invoice_currency: saleForm.invoice_currency,
-      exchange_rate_to_aed: saleForm.invoice_currency === 'USD' ? USD_TO_AED : 1,
-      panel_size: saleForm.panel_size,
-      panel_quantity: invoiceQty,
-      panel_subtotal: Number(panelSubtotal.toFixed(2)),
-      additional_costs_total: Number(extraCost.toFixed(2)),
-      subtotal_ex_vat: Number(invoiceSubtotal.toFixed(2)),
-      vat_rate: 5,
-      vat_amount: Number(vatAmount.toFixed(2)),
-      total_inc_vat: Number(invoiceTotal.toFixed(2)),
-      commissionable_base_amount: Number(invoiceSubtotal.toFixed(2)),
-      project_status: 'in_progress'
-    };
+    const { data, error: saveError } = await supabase.rpc('sunora_create_sale_bundle', {
+      p_partner_id: saleForm.partner_id,
+      p_referral_id: saleForm.referral_id || null,
+      p_invoice_number: saleForm.invoice_number.trim(),
+      p_invoice_date: saleForm.invoice_date,
+      p_country: saleForm.country,
+      p_invoice_currency: saleForm.invoice_currency,
+      p_panel_size: saleForm.panel_size,
+      p_panel_quantity: invoiceQty,
+      p_unit_price: invoiceUnit,
+      p_additional_cost_description: saleForm.additional_cost_description.trim(),
+      p_additional_cost_amount: extraCost,
+      p_savings_rate: Number(saleForm.savings_rate),
+      p_notes: saleForm.notes
+    });
 
-    const { data: sale, error: saleError } = await supabase
-      .from('sales')
-      .insert(payload)
-      .select('id,partner_id,invoice_number')
-      .single();
-
-    if (saleError) {
+    if (saveError) {
       setBusy(false);
-      setError(saleError.message);
+      setError(saveError.message);
       return;
     }
 
-    const followupErrors = [];
-
-    if (saleForm.referral_id) {
-      const { error: referralUpdateError } = await supabase
-        .from('referrals')
-        .update({ status: 'Converted' })
-        .eq('id', saleForm.referral_id);
-      if (referralUpdateError) followupErrors.push(`referral status: ${referralUpdateError.message}`);
-    }
-
-    if (extraCost > 0) {
-      const { error: costError } = await supabase
-        .from('sale_project_costs')
-        .insert({
-          sale_id: sale.id,
-          description: saleForm.additional_cost_description.trim() || 'Additional project cost',
-          amount: Number(extraCost.toFixed(2)),
-          currency: saleForm.invoice_currency,
-          created_by: session.user.id
-        });
-
-      if (costError) followupErrors.push(`project cost: ${costError.message}`);
-    }
-
-    const commissionPayload = {
-      sale_id: sale.id,
-      partner_id: sale.partner_id,
-      panel_quantity: invoiceQty,
-      tier_code: tier.code,
-      commissionable_base_amount: Number(invoiceSubtotal.toFixed(2)),
-      commission_currency: saleForm.invoice_currency,
-      commission_rate: tier.rate,
-      commission_amount: tier.rate === null
-        ? null
-        : Number((invoiceSubtotal * tier.rate / 100).toFixed(2)),
-      rate_status: tier.rate === null ? 'awaiting_manual_rate' : 'automatic',
-      approval_status: 'recorded',
-      eligibility_status: 'not_eligible',
-      created_by: session.user.id
-    };
-
-    const { error: commissionError } = await supabase
-      .from('sale_commissions')
-      .insert(commissionPayload);
-
-    if (commissionError) followupErrors.push(`commission: ${commissionError.message}`);
+    const result = data || {};
+    const invoiceNumber = result.invoice_number || saleForm.invoice_number.trim();
+    const created = result.created === true;
 
     setBusy(false);
     setShowSale(false);
@@ -870,15 +811,12 @@ async function addPartner(e) {
 
     await loadData();
 
-    if (followupErrors.length) {
-      setError(`Invoice ${sale.invoice_number} was saved, but follow-up records need attention: ${followupErrors.join('; ')}`);
-      return;
-    }
-
     flash(
-      tier.rate === null
-        ? 'Invoice saved. Profit rate above 150 panels requires manual approval.'
-        : 'Invoice and profit record saved. Profit is recorded, not yet approved or payable.'
+      created
+        ? (tier.rate === null
+            ? `Invoice ${invoiceNumber} and profit record saved. Profit rate above 150 panels requires manual approval.`
+            : `Invoice ${invoiceNumber} and profit record saved. Profit is recorded, not yet approved or payable.`)
+        : `Invoice ${invoiceNumber} already existed. The retry completed without creating duplicates.`
     );
   }
 
@@ -1074,11 +1012,34 @@ async function addPartner(e) {
   }
 
   function exportCsv() {
+    if (tab === 'Profit Ledger') {
+      const profitRows = scopedCommissions.map(c => ({
+        profit_id: c.id,
+        invoice_number: c.sale?.invoice_number || '',
+        partner_name: c.partner?.full_name || '',
+        partner_id: c.partner?.partner_code || '',
+        panel_quantity: c.panel_quantity,
+        profit_tier: c.tier_code,
+        profit_base_amount: c.commissionable_base_amount,
+        currency: c.commission_currency,
+        profit_rate: c.commission_rate,
+        profit_amount: c.commission_amount,
+        rate_status: c.rate_status,
+        approval_status: c.approval_status,
+        eligibility_status: c.eligibility_status,
+        approval_comments: c.approval_comments || '',
+        created_at: c.created_at,
+        approved_at: c.approved_at,
+        eligibility_approved_at: c.eligibility_approved_at
+      }));
+      downloadCsv(profitRows, 'sunora-profit-ledger.csv');
+      return;
+    }
+
     let rows = [];
 
     if (tab === 'Sales & Invoices') rows = scopedSales;
     else if (tab === 'Payments') rows = scopedPayments;
-    else if (tab === 'Profit Ledger') rows = scopedCommissions;
     else if (tab === 'Referrals' || tab === 'My Referrals') rows = scopedReferrals;
     else rows = scopedPartners;
 
@@ -1087,6 +1048,12 @@ async function addPartner(e) {
       delete clean.partner;
       delete clean.sale;
       delete clean.parent;
+      if (tab === 'Channel Partners' && clean.social_media_profiles) {
+        clean.social_media_profiles = Object.entries(clean.social_media_profiles)
+          .filter(([, value]) => String(value || '').trim())
+          .map(([platform, value]) => `${platform}: ${value}`)
+          .join(' | ');
+      }
       return clean;
     });
 
@@ -1937,7 +1904,7 @@ async function addPartner(e) {
                 </div>
 
                 <div className="form-hint report-note">
-                  This is a read-only statement preview. Profit amounts are not payable until Admin approval and all project-completion checks are satisfied. Outstanding values are estimates based on the selected month's eligible commissions and linked paid payouts.
+                  This is a read-only statement preview. Profit amounts are not payable until Admin approval and all project-completion checks are satisfied. Outstanding values are estimates based on the selected month's eligible profits and linked paid payouts.
                 </div>
               </>
             )}
