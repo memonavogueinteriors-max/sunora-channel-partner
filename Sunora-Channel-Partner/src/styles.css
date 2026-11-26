@@ -98,3 +98,6 @@ td{color:#6f5d45}tbody tr:hover{background:#faf6ee}td b{color:#59472f}td small{c
 .referral-form{padding:16px;margin:16px 0;background:var(--surface2);border:1px solid var(--line);border-radius:9px}
 .referral-status-select{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px}
 @media(max-width:760px){.social-profile-row{grid-template-columns:18px 85px minmax(0,1fr)}}
+
+.statement-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:760px){.statement-actions .secondary-btn{font-size:0;padding:9px}.statement-actions .secondary-btn svg{width:18px;height:18px}}
