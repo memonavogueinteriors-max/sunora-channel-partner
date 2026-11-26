@@ -64,7 +64,7 @@ test('migration preflights null and duplicate commission links, then adds a uniq
 });
 
 test('cleanup migration verifies the exact retained commission_id constraint and drops only the redundant index', async () => {
-  const sql = await readFile(new URL('../supabase/migrations/20261126180000_remove_redundant_payout_unique_index.sql', import.meta.url), 'utf8');
+  const sql = await readFile(new URL('../supabase/migrations/20261126184841_20261126180000_remove_redundant_payout_unique_index.sql', import.meta.url), 'utf8');
   assert.ok(sql.includes("pg_get_constraintdef(oid) = 'UNIQUE (commission_id)'"));
   assert.ok(sql.includes('commission_payouts_commission_id_key'));
   assert.ok(sql.includes('commission_id IS NULL'));

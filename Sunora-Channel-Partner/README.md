@@ -23,7 +23,7 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 
 ## Profit payout workflow (Nov 26, 2026)
 
-- Applied migrations: `20261126115630_profit_payout_workflow`, `20261126120922_profit_payout_role_guard_null_fix`, `20261126121202_index_uncovered_foreign_keys`, and live migration `20261126173908_unique_profit_payout_per_commission`.
+- Applied migrations: `20261126115630_profit_payout_workflow`, `20261126120922_profit_payout_role_guard_null_fix`, `20261126121202_index_uncovered_foreign_keys`, and live migration `20261126173908_unique_profit_payout_per_commission`. Category 5 cleanup migration version `20261126184841` is also applied.
 - Admin/Staff can create a pending payout for an approved, project-eligible profit.
 - Only Admin can mark a pending payout paid; payment date and reference are required.
 - Payouts are full-profit only (no partial payments); one payout per profit.
@@ -33,7 +33,7 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 - Rollback-only QA was run; no payout records were created. The live payout table remains empty.
 - Accounts payout UI is merged; regression suite and build checks passed for the referenced changes, but live UI interaction remains unverified.
 - Live database read-back verified `commission_id` is NOT NULL, the unique constraint exists, there are no null or duplicate commission IDs, and payout row count is zero.
-- The live advisor found a redundant standalone unique index in addition to the unique constraint. Category 5 cleanup migration is proposed to remove only that duplicate while retaining the constraint.
+- The live advisor identified a redundant standalone unique index. Category 5 cleanup migration `20261126184841` removed it; live read-back confirms the unique constraint remains, the duplicate index is gone, and the payout table is still empty.
 
 ## Sale integrity update (Nov 26, 2026)
 
@@ -62,7 +62,7 @@ No temporary QA records were left in the database after rollback tests.
 
 ## Database setup / migration warning
 
-`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has ten migrations recorded. Migration-source reconciliation is ongoing. The production payout-uniqueness migration filename is already aligned with the applied version; the regression test had referenced an obsolete filename and has been corrected. A Category 5 migration is proposed to remove only the duplicate standalone index while preserving the existing unique constraint. Do not recreate the production database or apply the starter schema to it until the migration chain has been reconciled and clean-install validation passes.
+`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has eleven migrations recorded. The current Category 5 migration-source reconciliation branch restores two missing source migrations, aligns two source filenames with live versions, and includes a pending privilege-hardening migration for six RLS-protected tables. This work is not yet merged or certified as a clean-install chain because the starter schema still lacks several current financial and notification objects. Do not recreate production or apply the starter schema until full clean-install validation passes.
 
 For the existing project, changes are applied through reviewed Supabase migrations. For local development:
 
@@ -95,7 +95,8 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 - Six `SECURITY DEFINER` functions remain executable by authenticated users for role lookup and guarded sale/payout RPCs; anonymous execution is denied. Review their scopes carefully before changing grants.
 - Leaked-password protection is reported disabled; enablement requires an Auth configuration review and is not yet verified.
 - The performance advisor reports 24 unused indexes (14 FK-supporting indexes plus 10 pre-existing). Do not drop them without query and FK analysis.
-- A duplicate unique index on `commission_payouts.commission_id` is identified for safe removal while preserving the existing unique constraint.
+- Live read-back confirms the duplicate unique index on `commission_payouts.commission_id` was removed while the unique constraint remains.
+- Live catalog inspection found `anon` and `authenticated` currently have `TRUNCATE` and other broad table privileges on six RLS-protected tables (`referrals`, `commission_payouts`, `sale_commissions`, `sale_project_costs`, `sunora_audit_log`, and `sunora_product_prices`); all table policies are scoped to `authenticated`. Category 5 proposes revoking `PUBLIC`/`anon`/`authenticated` broad grants on those tables, then restoring authenticated CRUD and service-role access. This migration is pending review/CI and has not been applied.
 
 ## Finance rules currently in code
 
