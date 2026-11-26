@@ -23,7 +23,7 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 
 ## Profit payout workflow (Nov 26, 2026)
 
-- Applied migrations: `20261126115630_profit_payout_workflow` and `20261126120922_profit_payout_role_guard_null_fix`.
+- Applied migrations: `20261126115630_profit_payout_workflow`, `20261126120922_profit_payout_role_guard_null_fix`, and `20261126121202_index_uncovered_foreign_keys`.
 - Admin/Staff can create a pending payout for an approved, project-eligible profit.
 - Only Admin can mark a pending payout paid; payment date and reference are required.
 - Payouts are full-profit only (no partial payments); one payout per profit, with duplicate creation idempotent.
@@ -60,7 +60,7 @@ No temporary QA records were left in the database after rollback tests.
 
 ## Database setup / migration warning
 
-`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has eight migrations recorded, including the profit payout workflow and its fail-closed role-guard fix. Earlier referral, social-profile, RLS optimization, and security migrations are still not fully synchronized in the repository. Do not recreate the production database or apply the starter schema to it. Migration-source reconciliation is still required before a clean environment can be provisioned safely from Git.
+`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has nine migrations recorded, including the profit payout workflow, its fail-closed role-guard fix, and foreign-key indexes. Earlier referral, social-profile, RLS optimization, and security migrations are still not fully synchronized in the repository. Do not recreate the production database or apply the starter schema to it. Migration-source reconciliation is still required before a clean environment can be provisioned safely from Git.
 
 For the existing project, changes are applied through reviewed Supabase migrations. For local development:
 
@@ -82,7 +82,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 - Recursive referral-branch visibility for partner logins (current access is limited to the partner and direct children).
 - Full end-to-end UI testing of registration, invitation delivery, password setup, partner login, referrals, invoice, profit approval, completion, and payout.
 - Reconcile the database's applied migration history and restore a complete clean-install schema/migration chain.
-- Security follow-up: enable leaked-password protection in Supabase Auth after configuration review. Supabase advisors also report 14 unindexed foreign keys and 10 unused indexes; these are being reviewed rather than removed blindly.
+- Security follow-up: enable leaked-password protection in Supabase Auth after configuration review. Supabase's unindexed-FK warning was cleared by adding 14 FK-supporting indexes. The advisor now reports 24 unused indexes (including the newly added FK indexes); the older 10 are being reviewed and nothing is being dropped blindly.
 
 ## Finance rules currently in code
 
