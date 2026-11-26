@@ -63,3 +63,6 @@ AFTER UPDATE OF status ON public.referrals
 FOR EACH ROW
 WHEN (OLD.status IS DISTINCT FROM NEW.status)
 EXECUTE FUNCTION public.sunora_partner_referral_status_notification();
+
+-- Authenticated users may only mark their own notification read via the existing RLS policy.
+GRANT UPDATE (read_at) ON public.notifications TO authenticated;
