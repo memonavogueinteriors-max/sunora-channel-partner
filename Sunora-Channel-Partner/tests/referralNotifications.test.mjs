@@ -21,6 +21,7 @@ test('referral status notifications fire only for status changes and target the 
     "'previous_status', OLD.status",
     "'new_status', NEW.status",
     'AFTER UPDATE OF status ON public.referrals',
+    'WHEN (OLD.status IS DISTINCT FROM NEW.status)',
     'EXECUTE FUNCTION public.sunora_partner_referral_status_notification()',
     'REVOKE ALL ON FUNCTION public.sunora_partner_referral_status_notification()'
   ]) assert.ok(sql.includes(fragment), 'Missing notification migration fragment: ' + fragment);
