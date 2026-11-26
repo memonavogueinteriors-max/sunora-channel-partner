@@ -130,6 +130,12 @@ export default function App() {
     client_accepted: false,
     completion_comments: ''
   });
+  const [selectedPayout, setSelectedPayout] = useState(null);
+  const [payoutPaymentForm, setPayoutPaymentForm] = useState({
+    payment_date: new Date().toISOString().slice(0, 10),
+    payment_reference: '',
+    notes: ''
+  });
 
   const [partnerForm, setPartnerForm] = useState({
     full_name: '',
@@ -368,6 +374,26 @@ export default function App() {
   const scopedPayouts = isStaff
     ? commissionPayouts
     : commissionPayouts.filter(p => ownCommissionIds.has(p.commission_id));
+
+  const payableProfits = scopedCommissions.filter(c =>
+    c.approval_status === 'approved' &&
+    c.eligibility_status === 'eligible' &&
+    Number(c.commission_amount || 0) > 0 &&
+    c.commission_rate !== null
+  );
+  const payoutByCommissionId = new Map(scopedPayouts.map(p => [p.commission_id, p]));
+  const availableProfits = payableProfits.filter(c => !payoutByCommissionId.has(c.id));
+  const payoutSummaryByCurrency = [...new Set(payableProfits.map(c => c.commission_currency || 'AED'))].map(currency => {
+    const eligible = payableProfits.filter(c => (c.commission_currency || 'AED') === currency)
+      .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
+    const pending = scopedPayouts.filter(p => p.currency === currency && p.status === 'pending')
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const paid = scopedPayouts.filter(p => p.currency === currency && p.status === 'paid')
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const available = availableProfits.filter(c => (c.commission_currency || 'AED') === currency)
+      .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
+    return { currency, eligible, pending, paid, available };
+  });
 
   const totalSales = sales.reduce(
     (sum, x) => sum + toAED(
@@ -957,6 +983,66 @@ async function addPartner(e) {
     });
   }
 
+  async function createProfitPayout(commission) {
+    if (!isStaff || busy || !commission) return;
+    setBusy(true);
+    setError('');
+    const { error: payoutError } = await supabase.rpc('sunora_create_profit_payout', {
+      p_commission_id: commission.id,
+      p_notes: null
+    });
+    setBusy(false);
+    if (payoutError) {
+      setError(payoutError.message);
+      return;
+    }
+    await loadData();
+    flash('Pending profit payout created. Admin confirmation is required to mark it paid.');
+  }
+
+  function openProfitPayoutPayment(payout) {
+    const commission = commissions.find(c => c.id === payout.commission_id);
+    setSelectedPayout({
+      id: payout.id,
+      commission_id: payout.commission_id,
+      amount: payout.amount,
+      currency: payout.currency,
+      invoice_number: commission?.sale?.invoice_number || '—',
+      partner_name: commission?.partner?.full_name || '—'
+    });
+    setPayoutPaymentForm({
+      payment_date: new Date().toISOString().slice(0, 10),
+      payment_reference: '',
+      notes: payout.notes || ''
+    });
+  }
+
+  async function markProfitPayoutPaid(e) {
+    e.preventDefault();
+    if (!isAdmin || !selectedPayout) return;
+    if (!payoutPaymentForm.payment_date || !payoutPaymentForm.payment_reference.trim()) {
+      setError('Payment date and reference are required.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    const { error: paidError } = await supabase.rpc('sunora_mark_profit_payout_paid', {
+      p_payout_id: selectedPayout.id,
+      p_payment_date: payoutPaymentForm.payment_date,
+      p_payment_reference: payoutPaymentForm.payment_reference.trim(),
+      p_notes: payoutPaymentForm.notes.trim() || null
+    });
+    setBusy(false);
+    if (paidError) {
+      setError(paidError.message);
+      return;
+    }
+    setSelectedPayout(null);
+    setPayoutPaymentForm({ payment_date: new Date().toISOString().slice(0, 10), payment_reference: '', notes: '' });
+    await loadData('admin');
+    flash('Profit payout marked paid and recorded.');
+  }
+
   async function addPayment(e) {
     e.preventDefault();
     setBusy(true);
@@ -1177,6 +1263,7 @@ async function addPartner(e) {
 
   const visibleNav = [
     ...nav,
+    ...(isStaff ? [{ name: 'Profit Payouts', icon: CreditCard }] : []),
     { name: isPartner ? 'My Referrals' : 'Referrals', icon: GitBranch },
     ...(isAdmin ? [{ name: 'Notifications', icon: Bell }] : []),
     ...(isAdmin ? [{ name: 'Monthly Reports', icon: ChartNoAxesCombined }] : []),
@@ -1497,6 +1584,94 @@ async function addPartner(e) {
                 ) : <Empty text="No approval or completion actions have been recorded yet." />}
               </div>
             )}
+          </section>
+        )}
+
+        {tab === 'Profit Payouts' && isStaff && (
+          <section className="panel">
+            <PanelHeading
+              title="Accounts · Profit Payouts"
+              subtitle="Full profit payments only — staff can create pending payouts, Admin confirms payment"
+            />
+            <div className="report-stats three">
+              <Stat icon={BadgePercent} label="Eligible profits" value={payableProfits.length} foot="Approved and project-completion eligible" />
+              <Stat icon={CreditCard} label="Pending payouts" value={scopedPayouts.filter(p => p.status === 'pending').length} foot="Awaiting Admin confirmation" />
+              <Stat icon={CheckCircle2} label="Paid payouts" value={scopedPayouts.filter(p => p.status === 'paid').length} foot="Confirmed payments" />
+            </div>
+
+            <div className="report-section">
+              <PanelHeading title="Payable balance by currency" subtitle="Pending amounts are reserved; available balances exclude pending and paid payouts" />
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Currency</th><th>Eligible profit</th><th>Pending</th><th>Paid</th><th>Available</th></tr></thead>
+                  <tbody>
+                    {payoutSummaryByCurrency.map(x => (
+                      <tr key={x.currency}>
+                        <td><b>{x.currency}</b></td>
+                        <td>{money(x.eligible, x.currency)}</td>
+                        <td>{money(x.pending, x.currency)}</td>
+                        <td>{money(x.paid, x.currency)}</td>
+                        <td className="gold-text">{money(x.available, x.currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!payoutSummaryByCurrency.length && <Empty text="No eligible profit balances yet." />}
+              </div>
+            </div>
+
+            <div className="report-section">
+              <PanelHeading title="Available eligible profits" subtitle="Create a single full payout for each eligible profit record" />
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Invoice</th><th>Partner</th><th>Panels</th><th>Rate</th><th>Profit amount</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {availableProfits.map(c => (
+                      <tr key={c.id}>
+                        <td className="code">{c.sale?.invoice_number || '—'}</td>
+                        <td><b>{c.partner?.full_name || '—'}</b><small>{c.partner?.partner_code}</small></td>
+                        <td>{c.panel_quantity}</td>
+                        <td>{c.commission_rate}%</td>
+                        <td className="gold-text">{money(c.commission_amount, c.commission_currency)}</td>
+                        <td><button className="mini-btn" disabled={busy} onClick={() => createProfitPayout(c)}>Create pending payout</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!availableProfits.length && <Empty text="No eligible profits are awaiting a payout record." />}
+              </div>
+            </div>
+
+            <div className="report-section">
+              <PanelHeading title="Payout register" subtitle="Payment references, dates and audit-backed status" />
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Invoice</th><th>Partner</th><th>Amount</th><th>Currency</th><th>Status</th><th>Payment date</th><th>Reference</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {scopedPayouts.map(p => {
+                      const c = commissions.find(x => x.id === p.commission_id);
+                      return (
+                        <tr key={p.id}>
+                          <td className="code">{c?.sale?.invoice_number || '—'}</td>
+                          <td><b>{c?.partner?.full_name || '—'}</b><small>{c?.partner?.partner_code || ''}</small></td>
+                          <td className="gold-text">{money(p.amount, p.currency)}</td>
+                          <td>{p.currency}</td>
+                          <td><span className={"status " + (p.status === 'paid' ? '' : 'pending')}>{p.status}</span></td>
+                          <td>{dateLabel(p.payment_date || p.paid_at?.slice(0, 10))}</td>
+                          <td>{p.payment_reference || '—'}</td>
+                          <td>{isAdmin && p.status === 'pending' && <button className="mini-btn" disabled={busy} onClick={() => openProfitPayoutPayment(p)}>Mark paid</button>}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {!scopedPayouts.length && <Empty text="No profit payout records have been created." />}
+              </div>
+            </div>
+
+            <div className="form-hint report-note">
+              Payouts are never partial: each eligible profit can have one full payout only. Staff can create pending records; only Admin can confirm payment. The database rechecks eligibility, locks the profit row, prevents duplicate payouts and overpayments, and records audit and partner notifications.
+            </div>
           </section>
         )}
 
@@ -2079,6 +2254,30 @@ async function addPartner(e) {
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setSelectedProject(null)}>Cancel</button>
               <button className="primary-btn" disabled={busy}>{busy ? 'Saving…' : 'Save project review'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {selectedPayout && (
+        <Modal title="Confirm profit payout payment" close={() => setSelectedPayout(null)}>
+          <form className="form-grid" onSubmit={markProfitPayoutPaid}>
+            <div className="form-hint full-field">
+              <b>{selectedPayout.invoice_number}</b> · {selectedPayout.partner_name} · {money(selectedPayout.amount, selectedPayout.currency)}
+              <br />Only Admin can confirm this payout. The payment reference is required for the audit trail.
+            </div>
+            <label>Payment date *
+              <input required type="date" value={payoutPaymentForm.payment_date} onChange={e => setPayoutPaymentForm(f => ({ ...f, payment_date: e.target.value }))} />
+            </label>
+            <label>Payment reference *
+              <input required value={payoutPaymentForm.payment_reference} onChange={e => setPayoutPaymentForm(f => ({ ...f, payment_reference: e.target.value }))} placeholder="Bank transfer / receipt reference" />
+            </label>
+            <label className="full-field">Notes
+              <textarea rows="3" value={payoutPaymentForm.notes} onChange={e => setPayoutPaymentForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional payment notes" />
+            </label>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setSelectedPayout(null)}>Cancel</button>
+              <button className="primary-btn" disabled={busy || !payoutPaymentForm.payment_reference.trim()}>{busy ? 'Saving…' : 'Mark payout paid'}</button>
             </div>
           </form>
         </Modal>
