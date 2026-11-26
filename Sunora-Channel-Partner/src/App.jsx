@@ -143,6 +143,7 @@ export default function App() {
 
   const [saleForm, setSaleForm] = useState({
     partner_id: '',
+    referral_id: '',
     invoice_number: '',
     invoice_date: new Date().toISOString().slice(0, 10),
     country: 'United Arab Emirates',
@@ -749,6 +750,7 @@ if (inviteError) {
 
     const payload = {
       partner_id: saleForm.partner_id,
+      referral_id: saleForm.referral_id || null,
       invoice_number: saleForm.invoice_number.trim(),
       invoice_date: saleForm.invoice_date,
       product_description: `Sunora ${saleForm.panel_size} Wellness Panel`,
@@ -785,6 +787,14 @@ if (inviteError) {
     }
 
     const followupErrors = [];
+
+    if (saleForm.referral_id) {
+      const { error: referralUpdateError } = await supabase
+        .from('referrals')
+        .update({ status: 'Converted' })
+        .eq('id', saleForm.referral_id);
+      if (referralUpdateError) followupErrors.push(`referral status: ${referralUpdateError.message}`);
+    }
 
     if (extraCost > 0) {
       const { error: costError } = await supabase
@@ -828,6 +838,7 @@ if (inviteError) {
 
     setSaleForm({
       partner_id: '',
+      referral_id: '',
       invoice_number: '',
       invoice_date: new Date().toISOString().slice(0, 10),
       country: 'United Arab Emirates',
@@ -1972,6 +1983,12 @@ if (inviteError) {
               </select>
             </label>
             <label>Invoice number *<input required value={saleForm.invoice_number} onChange={e => setSaleForm({ ...saleForm, invoice_number: e.target.value })} placeholder="SUN-INV-1001" /></label>
+            <label>Linked referral
+              <select value={saleForm.referral_id} onChange={e => setSaleForm({ ...saleForm, referral_id: e.target.value })} disabled={!saleForm.partner_id}>
+                <option value="">No referral selected</option>
+                {referrals.filter(r => r.partner_id === saleForm.partner_id && r.status !== 'Lost').map(r => <option key={r.id} value={r.id}>{r.contact_name}{r.company ? ` — ${r.company}` : ''} (${r.status})</option>)}
+              </select>
+            </label>
             <label>Invoice date *<input required type="date" value={saleForm.invoice_date} onChange={e => setSaleForm({ ...saleForm, invoice_date: e.target.value })} /></label>
             <label>Customer country *
               <select required value={saleForm.country} onChange={e => setSaleForm({ ...saleForm, country: e.target.value })}>
