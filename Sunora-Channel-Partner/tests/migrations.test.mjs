@@ -21,7 +21,7 @@ test('migration filenames match the applied live migration history', async () =>
     '20261126185733_20261126190000_restrict_public_table_privileges.sql',
     '20261126203001_partner_referral_status_notifications.sql',
     '20261126203714_partner_recursive_branch_read.sql',
-    '20261126204000_partner_branch_partner_role_guard.sql'
+    '20261126203945_partner_branch_partner_role_guard.sql'
   ]);
 });
 
