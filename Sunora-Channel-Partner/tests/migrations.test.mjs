@@ -18,7 +18,7 @@ test('migration filenames are reconciled with live versions plus the pending ACL
     '20261126121202_index_uncovered_foreign_keys.sql',
     '20261126173908_unique_profit_payout_per_commission.sql',
     '20261126184841_20261126180000_remove_redundant_payout_unique_index.sql',
-    '20261126190000_tighten_referrals_table_privileges.sql'
+    '20261126190000_restrict_public_table_privileges.sql'
   ]);
 });
 
