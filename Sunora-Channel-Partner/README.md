@@ -62,7 +62,7 @@ No temporary QA records were left in the database after rollback tests.
 
 ## Database setup / migration warning
 
-`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has eleven migrations recorded. The current Category 5 migration-source reconciliation branch restores two missing source migrations, aligns two source filenames with live versions, and includes a pending privilege-hardening migration for six RLS-protected tables. This work is not yet merged or certified as a clean-install chain because the starter schema still lacks several current financial and notification objects. Do not recreate production or apply the starter schema until full clean-install validation passes.
+`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has twelve migrations recorded. Category 5 restored two missing source migrations and aligned migration filenames with the recorded live versions. The referrals table privilege-hardening migration is applied and read-back verified. Full clean-install certification is still blocked because the starter schema lacks several current financial and notification objects. Do not recreate production or apply the starter schema until full clean-install validation passes.
 
 For the existing project, changes are applied through reviewed Supabase migrations. For local development:
 
@@ -96,7 +96,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 - Leaked-password protection is reported disabled; enablement requires an Auth configuration review and is not yet verified.
 - The performance advisor reports 24 unused indexes (14 FK-supporting indexes plus 10 pre-existing). Do not drop them without query and FK analysis.
 - Live read-back confirms the duplicate unique index on `commission_payouts.commission_id` was removed while the unique constraint remains.
-- Live catalog inspection found `anon` and `authenticated` currently have `TRUNCATE` and other broad table privileges on six RLS-protected tables (`referrals`, `commission_payouts`, `sale_commissions`, `sale_project_costs`, `sunora_audit_log`, and `sunora_product_prices`); all table policies are scoped to `authenticated`. Category 5 proposes revoking `PUBLIC`/`anon`/`authenticated` broad grants on those tables, then restoring authenticated CRUD and service-role access. This migration is pending review/CI and has not been applied.
+- Live catalog inspection found broad table privileges including `TRUNCATE` on six RLS-protected tables (`referrals`, `commission_payouts`, `sale_commissions`, `sale_project_costs`, `sunora_audit_log`, and `sunora_product_prices`). Migration `20261126185733` removed those grants from `PUBLIC`, `anon`, and `authenticated`, restored authenticated CRUD and service-role access, and was read-back verified: anonymous privileges are all false, authenticated CRUD remains true but `TRUNCATE` is false, and RLS is enabled on all six tables.
 
 ## Finance rules currently in code
 
