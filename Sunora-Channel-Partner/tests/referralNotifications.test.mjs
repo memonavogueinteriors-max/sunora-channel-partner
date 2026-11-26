@@ -27,6 +27,7 @@ test('referral status notifications fire only for status changes and target the 
     'GRANT UPDATE (read_at) ON public.notifications TO authenticated'
   ]) assert.ok(sql.includes(fragment), 'Missing notification migration fragment: ' + fragment);
   assert.ok(!sql.includes('GRANT UPDATE ON public.notifications TO authenticated'));
+  assert.ok(!sql.includes('GRANT UPDATE ON TABLE public.notifications TO authenticated'));
   assert.ok(!sql.includes('http'));
   assert.ok(!sql.includes('supabase.functions.invoke'));
 });
