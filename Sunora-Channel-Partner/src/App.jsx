@@ -635,11 +635,44 @@ async function updateReferralStatus(referralId, status) {
 }
 
 
+async function sendPartnerInvitation(partnerId) {
+  const { data, error } = await supabase.functions.invoke('partner-invite', {
+    body: { partner_id: partnerId }
+  });
+  if (error) {
+    let message = error.message || 'Invitation request failed.';
+    const context = error.context;
+    if (context && typeof context.clone === 'function') {
+      const body = await context.clone().json().catch(() => null);
+      if (body?.error) message = body.error;
+    }
+    throw new Error(message);
+  }
+  if (!data?.success) throw new Error(data?.error || 'Invitation was not confirmed.');
+  return data;
+}
+
+async function retryPartnerInvite(partner) {
+  if (!isAdmin || busy || !partner || partner.user_id || partner.status !== 'active') return;
+  setBusy(true);
+  setError('');
+  try {
+    await sendPartnerInvitation(partner.id);
+    await loadData();
+    flash(`Invitation sent to ${partner.email || partner.full_name}.`);
+  } catch (err) {
+    setError(`Invitation failed for ${partner.partner_code}: ${err.message || 'Please try again.'}`);
+  } finally {
+    setBusy(false);
+  }
+}
+
 async function addPartner(e) {
   e.preventDefault();
   setBusy(true);
   setError('');
 
+  let createdPartner = null;
   try {
     const payload = {
       ...partnerForm,
@@ -647,42 +680,16 @@ async function addPartner(e) {
       social_media_profiles: Object.fromEntries(Object.entries(partnerForm.social_media_profiles || {}).filter(([platform, value]) => String(value || '').trim()))
     };
 
-    // Step 1: Create the partner record in Supabase.
     const { data, error: insertError } = await supabase
       .from('partners')
       .insert(payload)
-      .select('id, partner_code, full_name')
+      .select('id, partner_code, full_name, email')
       .single();
 
-    if (insertError) {
-      throw insertError;
-    }
+    if (insertError) throw insertError;
+    createdPartner = data;
 
-    // Step 2: Send the partner invitation.
-console.log('PARTNER INVITE: calling Edge Function', data.id);
-
-const { data: inviteData, error: inviteError } =
-  await supabase.functions.invoke('partner-invite', {
-    body: {
-      partner_id: data.id
-    }
-  });
-
-if (inviteError) {
-  throw new Error(
-    `Partner created (${data.partner_code}), but invitation failed: ${inviteError.message}`
-  );
-}
-
-    if (!inviteData?.success) {
-      throw new Error(
-        `Partner created (${data.partner_code}), but invitation was not confirmed.`
-      );
-    }
-
-    // Step 3: Reset the form after successful invitation.
     setShowPartner(false);
-
     setPartnerForm({
       full_name: '',
       email: '',
@@ -695,12 +702,20 @@ if (inviteError) {
 
     await loadData();
 
-    flash(`Partner created and invitation sent: ${data.partner_code}`);
-
+    if (isAdmin) {
+      try {
+        await sendPartnerInvitation(data.id);
+        await loadData();
+        flash(`Partner created and invitation sent: ${data.partner_code}`);
+      } catch (inviteErr) {
+        setError(`Partner registered (${data.partner_code}), but the invitation failed. Use “Send invite” in the Actions column to retry. ${inviteErr.message || ''}`);
+      }
+    } else {
+      flash(`Partner registered (${data.partner_code}). An Admin must send the login invitation.`);
+    }
   } catch (err) {
     setError(err.message || 'Unable to create partner.');
-    await loadData();
-
+    if (!createdPartner) await loadData();
   } finally {
     setBusy(false);
   }
@@ -1378,7 +1393,7 @@ if (inviteError) {
               action={isStaff && <button className="primary-btn" onClick={() => setShowPartner(true)}><Plus size={16} /> Register partner</button>}
             />
             <Toolbar search={search} setSearch={setSearch} exportCsv={exportCsv} />
-            <PartnersTable rows={visiblePartners} onSelect={p => setSearch(p.partner_code)} />
+            <PartnersTable rows={visiblePartners} onSelect={p => setSearch(p.partner_code)} isAdmin={isAdmin} busy={busy} onInvite={retryPartnerInvite} />
           </section>
         )}
 
@@ -2190,11 +2205,11 @@ function Toolbar({ search, setSearch, exportCsv }) {
   );
 }
 
-function PartnersTable({ rows, onSelect }) {
+function PartnersTable({ rows, onSelect, isAdmin, busy, onInvite }) {
   return (
     <div className="table-wrap">
       <table>
-        <thead><tr><th>Partner</th><th>Partner ID</th><th>Type</th><th>Parent partner</th><th>Joined</th><th>Status</th></tr></thead>
+        <thead><tr><th>Partner</th><th>Partner ID</th><th>Type</th><th>Parent partner</th><th>Joined</th><th>Status</th>{isAdmin && <th>Actions</th>}</tr></thead>
         <tbody>
           {rows.map(p => (
             <tr key={p.id} onClick={() => onSelect(p)}>
@@ -2209,6 +2224,7 @@ function PartnersTable({ rows, onSelect }) {
               <td>{p.parent?.full_name || 'Direct'}</td>
               <td>{dateLabel(p.created_at?.slice(0, 10))}</td>
               <td><span className={`status ${p.status === 'inactive' ? 'inactive' : ''}`}>{p.status || 'active'}</span></td>
+              {isAdmin && <td onClick={e => e.stopPropagation()}>{p.user_id ? <span className="status">Login linked</span> : p.status === 'active' ? <button type="button" className="mini-btn" disabled={busy} onClick={e => { e.stopPropagation(); onInvite(p); }}>{busy ? 'Sending…' : 'Send invite'}</button> : '—'}</td>}
             </tr>
           ))}
         </tbody>
