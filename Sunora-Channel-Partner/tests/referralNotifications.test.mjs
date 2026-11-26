@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const migrationPath = new URL('../supabase/migrations/20261126202500_partner_referral_status_notifications.sql', import.meta.url);
+const migrationPath = new URL('../supabase/migrations/20261126203001_partner_referral_status_notifications.sql', import.meta.url);
 
 test('referral status notifications fire only for status changes and target the linked partner', async () => {
   const sql = await readFile(migrationPath, 'utf8');
