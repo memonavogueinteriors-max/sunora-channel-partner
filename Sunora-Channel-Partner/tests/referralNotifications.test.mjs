@@ -25,7 +25,8 @@ test('referral status notifications fire only for status changes and target the 
     'EXECUTE FUNCTION public.sunora_partner_referral_status_notification()',
     'REVOKE ALL ON FUNCTION public.sunora_partner_referral_status_notification()',
     'GRANT UPDATE (read_at) ON public.notifications TO authenticated'
-  ]) assert.ok(sql.includes(fragment), 'Missing notification migration fragment: ' + fragment);
+,
+    'REVOKE UPDATE ON TABLE public.notifications FROM authenticated'  ]) assert.ok(sql.includes(fragment), 'Missing notification migration fragment: ' + fragment);
   assert.ok(!sql.includes('http'));
   assert.ok(!sql.includes('supabase.functions.invoke'));
 });
