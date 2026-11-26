@@ -1939,9 +1939,9 @@ if (inviteError) {
               <div className="social-profile-heading"><b>Social media profiles</b><small>Select platforms and add the partner’s handle or profile URL.</small></div>
               {['Instagram', 'Facebook', 'LinkedIn', 'TikTok', 'YouTube', 'X', 'Website', 'Other'].map(platform => (
                 <label className="social-profile-row" key={platform}>
-                  <input type="checkbox" checked={Boolean(partnerForm.social_media_profiles?.[platform])} onChange={e => setPartnerForm(f => ({ ...f, social_media_profiles: { ...(f.social_media_profiles || {}), [platform]: e.target.checked ? (f.social_media_profiles?.[platform] || '') : '' } }))} />
+                  <input type="checkbox" checked={Object.hasOwn(partnerForm.social_media_profiles || {}, platform)} onChange={e => setPartnerForm(f => { const profiles = { ...(f.social_media_profiles || {}) }; if (e.target.checked) profiles[platform] = ''; else delete profiles[platform]; return { ...f, social_media_profiles: profiles }; })} />
                   <span>{platform}</span>
-                  {partnerForm.social_media_profiles?.[platform] !== undefined && Boolean(partnerForm.social_media_profiles?.[platform]) && (
+                  {Object.hasOwn(partnerForm.social_media_profiles || {}, platform) && (
                     <input type="text" value={partnerForm.social_media_profiles[platform] || ''} placeholder="@username or profile URL" onChange={e => setPartnerForm(f => ({ ...f, social_media_profiles: { ...(f.social_media_profiles || {}), [platform]: e.target.value } }))} />
                   )}
                 </label>
