@@ -381,7 +381,8 @@ export default function App() {
         p.id === ownPartner?.id || p.parent_partner_id === ownPartner?.id
       );
 
-  const branchNetworkRows = isStaff ? partners : branchPartners;
+  const branchNetworkRows = isStaff ? partners : (branchPartners.length ? branchPartners : scopedPartners);
+  const branchPartnerCount = isStaff ? partners.length : branchNetworkRows.filter(p => p.id !== ownPartner?.id).length;
   const branchNetworkRoots = isStaff
     ? branchNetworkRows.filter(p => !p.parent_partner_id || !branchNetworkRows.some(x => x.id === p.parent_partner_id))
     : branchNetworkRows.filter(p => p.id === ownPartner?.id);
@@ -1543,7 +1544,7 @@ async function addPartner(e) {
             </section>
 
             <section className="stats-grid">
-              <Stat icon={Users} label={isStaff ? 'Total partners' : 'My partners'} value={isStaff ? partners.length : Math.max(0, branchPartners.filter(p => p.id !== ownPartner?.id).length)} foot="Registered network" />
+              <Stat icon={Users} label={isStaff ? 'Total partners' : 'My partners'} value={branchPartnerCount} foot="Registered network" />
               <Stat icon={TrendingUp} label="Total sales" value={money(isStaff ? totalSales : effectiveSales)} foot="Invoice value recorded" />
               <Stat icon={Wallet} label="Channel Partner Savings" value={money(isStaff ? totalSavings : effectiveSavings)} foot="Earned savings · not deducted from sales" />
               <Stat icon={CreditCard} label="Outstanding savings" value={money(isStaff ? totalDue : Math.max(0, effectiveSavings - effectivePaid))} foot="Pending settlement" />
