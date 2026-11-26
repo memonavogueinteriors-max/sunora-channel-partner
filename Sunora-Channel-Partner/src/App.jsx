@@ -1896,7 +1896,7 @@ if (inviteError) {
                         ))}
                       </tbody>
                     </table>
-                    {!statementCommissionTotals.length && <Empty text="No commission totals available." />}
+                    {!statementCommissionTotals.length && <Empty text="No profit totals available." />}
                   </div>
                 </div>
 
