@@ -52,35 +52,44 @@ test('balances are separated by currency and reconcile to eligible, pending, pai
 });
 
 test('migration preflights null and duplicate commission links, then adds a unique index', async () => {
-  const sql = await readFile(new URL('../supabase/migrations/20261126153400_unique_profit_payout_per_commission.sql', import.meta.url), 'utf8');
+  const sql = await readFile(new URL('../supabase/migrations/20261126173908_unique_profit_payout_per_commission.sql', import.meta.url), 'utf8');
   assert.match(sql, /WHERE commission_id IS NULL/i);
-  assert.match(sql, /GROUP BY commission_id\s+HAVING COUNT\(\*\) > 1/i);
+  assert.match(sql, /GROUP BY commission_id\\s+HAVING COUNT\\(\\*\\) > 1/i);
   assert.match(sql, /ALTER COLUMN commission_id SET NOT NULL/i);
   assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS commission_payouts_commission_id_uidx/i);
-  assert.doesNotMatch(sql, /\b(DROP TABLE|DELETE FROM|TRUNCATE)\b/i);
+  assert.doesNotMatch(sql, /\\b(DROP TABLE|DELETE FROM|TRUNCATE)\\b/i);
+});
+
+test('cleanup migration verifies the retained constraint and drops only the redundant index', async () => {
+  const sql = await readFile(new URL('../supabase/migrations/20261126180000_remove_redundant_payout_unique_index.sql', import.meta.url), 'utf8');
+  assert.match(sql, /commission_payouts_commission_id_key/i);
+  assert.match(sql, /commission_id IS NULL/i);
+  assert.match(sql, /DROP INDEX IF EXISTS public\\.commission_payouts_commission_id_uidx/i);
+  assert.doesNotMatch(sql, /DROP CONSTRAINT/i);
+  assert.doesNotMatch(sql, /\\b(DROP TABLE|DELETE FROM|TRUNCATE)\\b/i);
 });
 
 test('existing payout RPC serializes by commission and returns an existing payout on retry', async () => {
   const sql = await readFile(new URL('../supabase/migrations/20261126115630_profit_payout_workflow.sql', import.meta.url), 'utf8');
-  assert.match(sql, /WHERE id = p_commission_id\s+FOR UPDATE/i);
-  assert.match(sql, /WHERE commission_id = p_commission_id\s+FOR UPDATE/i);
-  assert.match(sql, /IF FOUND THEN\s+RETURN v_existing/i);
-  assert.match(sql, /NEW\.amount IS DISTINCT FROM v_profit/i);
-  assert.match(sql, /NEW\.currency IS DISTINCT FROM v_currency/i);
+  assert.match(sql, /WHERE id = p_commission_id\\s+FOR UPDATE/i);
+  assert.match(sql, /WHERE commission_id = p_commission_id\\s+FOR UPDATE/i);
+  assert.match(sql, /IF FOUND THEN\\s+RETURN v_existing/i);
+  assert.match(sql, /NEW\\.amount IS DISTINCT FROM v_profit/i);
+  assert.match(sql, /NEW\\.currency IS DISTINCT FROM v_currency/i);
 });
 
 test('paid confirmation requires an Admin role, date, and reference with null-safe checks', async () => {
   const roleFix = await readFile(new URL('../supabase/migrations/20261126120922_profit_payout_role_guard_null_fix.sql', import.meta.url), 'utf8');
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(roleFix, /coalesce\(public\.current_user_role\(\), ''\) <> 'admin'/i);
-  assert.match(app, /isAdmin && p\.status === 'pending'/);
+  assert.match(roleFix, /coalesce\\(public\\.current_user_role\\(\\), ''\\) <> 'admin'/i);
+  assert.match(app, /isAdmin && p\\.status === 'pending'/);
   assert.match(app, /sunora_mark_profit_payout_paid/);
   assert.match(app, /Payment date and reference are required/);
 });
 
 test('Accounts payout UI is restricted to Staff/Admin and calls the guarded creation RPC', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(app, /\(isStaff \? \[\{ name: 'Profit Payouts'/);
+  assert.match(app, /\\(isStaff \\? \\[\\{ name: 'Profit Payouts'/);
   assert.match(app, /tab === 'Profit Payouts' && isStaff/);
   assert.match(app, /sunora_create_profit_payout/);
 });
