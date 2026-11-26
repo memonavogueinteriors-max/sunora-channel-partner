@@ -1064,6 +1064,7 @@ if (inviteError) {
     if (tab === 'Sales & Invoices') rows = scopedSales;
     else if (tab === 'Payments') rows = scopedPayments;
     else if (tab === 'Profit Ledger') rows = scopedCommissions;
+    else if (tab === 'Referrals' || tab === 'My Referrals') rows = scopedReferrals;
     else rows = scopedPartners;
 
     const exportRows = rows.map(row => {
