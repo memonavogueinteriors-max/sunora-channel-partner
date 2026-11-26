@@ -75,7 +75,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 ## Remaining roadmap
 
 - Accounts payout UI/build/deployment validation (backend RPCs and database guardrails are implemented and applied; UI is in PR #1 pending build/deployment verification).
-- Partner notification delivery/read UI: the payout-paid trigger is implemented; a partner-only, read-only notification panel is proposed in PR `automation/partner-notifications-readonly-ui` and remains unmerged pending CI, preview, and RLS verification. Referral status/conversion notifications remain incomplete.
+- Partner notification delivery/read UI: the payout-paid trigger is implemented; a partner-only, read-only notification panel is proposed in PR `automation/partner-notifications-readonly-ui` and remains unmerged pending live-preview inspection and notification-table SELECT RLS verification (the GitHub build and Vercel check have passed). Referral status/conversion notifications remain incomplete.
 - Monthly statement PDF generation and automated email delivery.
 - Google Sheets sync (the current folder is documentation only; no active sync function).
 - Zoho Books API integration.
