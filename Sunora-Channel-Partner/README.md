@@ -74,7 +74,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 
 ## Remaining roadmap
 
-- Accounts payout UI/build/deployment validation (backend RPCs and database guardrails are implemented and applied; UI is in PR #1 pending build/deployment verification).
+- Accounts payout workflow UI and build/deployment validation are complete (PR #1, regression suite in PR #4, and production deployment verified). PR #4 also adds a one-payout-per-profit unique-index migration, but it is merged and **not applied to production** because Supabase migration execution is blocked in the current environment. Live UI interaction remains deferred to Category 2.
 - Referral status and conversion notifications to partners (status updates are currently stored; partner notification coverage is incomplete).
 - Monthly statement PDF generation and automated email delivery.
 - Google Sheets sync (the current folder is documentation only; no active sync function).
