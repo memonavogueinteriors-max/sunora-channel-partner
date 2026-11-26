@@ -33,7 +33,18 @@ const dateLabel = d =>
     day: '2-digit', month: 'short', year: 'numeric'
   }) : '—';
 
-const currentMonth = () => new Date().toISOString().slice(0, 7);
+const currentDubaiDate = () => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Dubai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
+const currentMonth = () => currentDubaiDate().slice(0, 7);
 
 const monthLabel = value => {
   if (!value) return '';
@@ -56,7 +67,7 @@ const nav = [
 function downloadCsv(rows, filename) {
   if (!rows.length) return;
 
-  const headers = Object.keys(rows[0]);
+  const headers = [...new Set(rows.flatMap(row => Object.keys(row)))];
   const csv = [
     headers.map(x => `"${String(x).replaceAll('"', '""')}"`).join(','),
     ...rows.map(row =>
@@ -132,7 +143,7 @@ export default function App() {
   });
   const [selectedPayout, setSelectedPayout] = useState(null);
   const [payoutPaymentForm, setPayoutPaymentForm] = useState({
-    payment_date: new Date().toISOString().slice(0, 10),
+    payment_date: currentDubaiDate(),
     payment_reference: '',
     notes: ''
   });
@@ -151,7 +162,7 @@ export default function App() {
     partner_id: '',
     referral_id: '',
     invoice_number: '',
-    invoice_date: new Date().toISOString().slice(0, 10),
+    invoice_date: currentDubaiDate(),
     country: 'United Arab Emirates',
     invoice_currency: 'AED',
     panel_size: '60x60',
@@ -167,7 +178,7 @@ export default function App() {
   const [paymentForm, setPaymentForm] = useState({
     partner_id: '',
     amount: '',
-    payment_date: new Date().toISOString().slice(0, 10),
+    payment_date: currentDubaiDate(),
     reference: '',
     notes: ''
   });
@@ -591,11 +602,17 @@ export default function App() {
 
   const statementCommissionIds = new Set(statementCommissions.map(c => c.id));
 
+  // Payment history is based on payment month, not the invoice month.
   const statementPayouts = isPartner
-    ? commissionPayouts.filter(p =>
-        statementCommissionIds.has(p.commission_id) &&
+    ? scopedPayouts.filter(p =>
         inMonth(p.payment_date || p.paid_at || p.created_at, reportMonth)
       )
+    : [];
+
+  // Profit summary is based on the selected invoice month, so include all payouts
+  // linked to those profits regardless of the month the payment occurred.
+  const statementPayoutsForInvoices = isPartner
+    ? scopedPayouts.filter(p => statementCommissionIds.has(p.commission_id))
     : [];
 
   const statementSalesByCurrency = [...new Set(
@@ -622,14 +639,19 @@ export default function App() {
       .filter(c => c.approval_status === 'approved' && c.eligibility_status === 'eligible')
       .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
 
-    const paid = statementPayouts
+    const paid = statementPayoutsForInvoices
       .filter(p => p.currency === currency && p.status === 'paid')
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+    const pending = statementPayoutsForInvoices
+      .filter(p => p.currency === currency && p.status === 'pending')
       .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
     return {
       currency,
       eligible,
       paid,
+      pending,
       outstanding: Math.max(0, eligible - paid)
     };
   });
@@ -822,7 +844,7 @@ async function addPartner(e) {
       partner_id: '',
       referral_id: '',
       invoice_number: '',
-      invoice_date: new Date().toISOString().slice(0, 10),
+      invoice_date: currentDubaiDate(),
       country: 'United Arab Emirates',
       invoice_currency: 'AED',
       panel_size: '60x60',
@@ -1011,7 +1033,7 @@ async function addPartner(e) {
       partner_name: commission?.partner?.full_name || '—'
     });
     setPayoutPaymentForm({
-      payment_date: new Date().toISOString().slice(0, 10),
+      payment_date: currentDubaiDate(),
       payment_reference: '',
       notes: payout.notes || ''
     });
@@ -1038,7 +1060,7 @@ async function addPartner(e) {
       return;
     }
     setSelectedPayout(null);
-    setPayoutPaymentForm({ payment_date: new Date().toISOString().slice(0, 10), payment_reference: '', notes: '' });
+    setPayoutPaymentForm({ payment_date: currentDubaiDate(), payment_reference: '', notes: '' });
     await loadData('admin');
     flash('Profit payout marked paid and recorded.');
   }
@@ -1066,7 +1088,7 @@ async function addPartner(e) {
     setPaymentForm({
       partner_id: '',
       amount: '',
-      payment_date: new Date().toISOString().slice(0, 10),
+      payment_date: currentDubaiDate(),
       reference: '',
       notes: ''
     });
@@ -1176,16 +1198,106 @@ async function addPartner(e) {
   function exportPartnerStatement() {
     if (!isPartner || !ownPartner) return;
 
-    const rows = statementSales.map(s => ({
-      invoice_number: s.invoice_number,
-      invoice_date: s.invoice_date,
-      currency: s.invoice_currency,
-      panels: s.panel_quantity ?? s.quantity,
-      subtotal_ex_vat: s.subtotal_ex_vat,
-      vat: s.vat_amount,
-      total_inc_vat: s.total_inc_vat ?? s.invoice_amount
+    const summaryRows = statementCommissionTotals.map(x => ({
+      record_type: 'SUMMARY',
+      invoice_number: '',
+      date: '',
+      partner_name: ownPartner.full_name,
+      partner_code: ownPartner.partner_code,
+      panels: '',
+      currency: x.currency,
+      subtotal_ex_vat: '',
+      vat: '',
+      total_inc_vat: '',
+      profit_base: '',
+      profit_rate: '',
+      profit_amount: '',
+      approval_status: '',
+      eligibility_status: '',
+      payment_status: '',
+      payment_reference: '',
+      eligible_profit: x.eligible,
+      paid_profit: x.paid,
+      pending_profit: x.pending,
+      outstanding_estimate: x.outstanding
     }));
 
+    const saleRows = statementSales.map(s => ({
+      record_type: 'SALE',
+      invoice_number: s.invoice_number,
+      date: s.invoice_date,
+      partner_name: ownPartner.full_name,
+      partner_code: ownPartner.partner_code,
+      panels: s.panel_quantity ?? s.quantity,
+      currency: s.invoice_currency,
+      subtotal_ex_vat: s.subtotal_ex_vat,
+      vat: s.vat_amount,
+      total_inc_vat: s.total_inc_vat ?? s.invoice_amount,
+      profit_base: '',
+      profit_rate: '',
+      profit_amount: '',
+      approval_status: '',
+      eligibility_status: '',
+      payment_status: '',
+      payment_reference: '',
+      eligible_profit: '',
+      paid_profit: '',
+      pending_profit: '',
+      outstanding_estimate: ''
+    }));
+
+    const profitRows = statementCommissions.map(c => ({
+      record_type: 'PROFIT',
+      invoice_number: c.sale?.invoice_number || '',
+      date: c.sale?.invoice_date || '',
+      partner_name: ownPartner.full_name,
+      partner_code: ownPartner.partner_code,
+      panels: c.panel_quantity,
+      currency: c.commission_currency,
+      subtotal_ex_vat: '',
+      vat: '',
+      total_inc_vat: '',
+      profit_base: c.commissionable_base_amount,
+      profit_rate: c.commission_rate,
+      profit_amount: c.commission_amount,
+      approval_status: c.approval_status,
+      eligibility_status: c.eligibility_status,
+      payment_status: '',
+      payment_reference: '',
+      eligible_profit: '',
+      paid_profit: '',
+      pending_profit: '',
+      outstanding_estimate: ''
+    }));
+
+    const payoutRows = statementPayouts.map(p => {
+      const commission = scopedCommissions.find(c => c.id === p.commission_id);
+      return {
+        record_type: 'PAYOUT',
+        invoice_number: commission?.sale?.invoice_number || '',
+        date: p.payment_date || p.paid_at?.slice(0, 10) || p.created_at?.slice(0, 10) || '',
+        partner_name: ownPartner.full_name,
+        partner_code: ownPartner.partner_code,
+        panels: '',
+        currency: p.currency,
+        subtotal_ex_vat: '',
+        vat: '',
+        total_inc_vat: '',
+        profit_base: '',
+        profit_rate: '',
+        profit_amount: p.amount,
+        approval_status: '',
+        eligibility_status: '',
+        payment_status: p.status,
+        payment_reference: p.payment_reference || '',
+        eligible_profit: '',
+        paid_profit: '',
+        pending_profit: '',
+        outstanding_estimate: ''
+      };
+    });
+
+    const rows = [...summaryRows, ...saleRows, ...profitRows, ...payoutRows];
     downloadCsv(rows, `sunora-my-statement-${reportMonth}.csv`);
   }
 
@@ -2041,13 +2153,14 @@ async function addPartner(e) {
 
                   <div className="table-wrap">
                     <table>
-                      <thead><tr><th>Currency</th><th>Eligible profit</th><th>Paid</th><th>Outstanding estimate</th></tr></thead>
+                      <thead><tr><th>Currency</th><th>Eligible profit</th><th>Paid</th><th>Pending</th><th>Outstanding (incl. pending)</th></tr></thead>
                       <tbody>
                         {statementCommissionTotals.map(x => (
                           <tr key={x.currency}>
                             <td><b>{x.currency}</b></td>
                             <td>{money(x.eligible, x.currency)}</td>
                             <td>{money(x.paid, x.currency)}</td>
+                            <td>{money(x.pending, x.currency)}</td>
                             <td className="gold-text">{money(x.outstanding, x.currency)}</td>
                           </tr>
                         ))}
