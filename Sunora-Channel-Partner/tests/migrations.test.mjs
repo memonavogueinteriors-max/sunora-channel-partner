@@ -52,11 +52,14 @@ test('social profile migration uses a non-null empty-object JSONB default', asyn
   assert.ok(sql.includes("'{}'::jsonb"));
 });
 
-test('referrals ACL hardening removes anonymous and truncate privileges but preserves authenticated CRUD', async () => {
-  const sql = await readFile(new URL('../supabase/migrations/20261126190000_tighten_referrals_table_privileges.sql', import.meta.url), 'utf8');
-  assert.ok(sql.includes('REVOKE ALL ON TABLE public.referrals FROM PUBLIC, anon, authenticated'));
-  assert.ok(sql.includes('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.referrals TO authenticated'));
-  assert.ok(sql.includes('GRANT ALL ON TABLE public.referrals TO service_role'));
+test('public table ACL hardening removes anon and truncate privileges from exposed RLS tables while preserving authenticated CRUD', async () => {
+  const sql = await readFile(new URL('../supabase/migrations/20261126190000_restrict_public_table_privileges.sql', import.meta.url), 'utf8');
+  const tables = ['public.referrals', 'public.commission_payouts', 'public.sale_commissions', 'public.sale_project_costs', 'public.sunora_audit_log', 'public.sunora_product_prices'];
+  for (const table of tables) assert.ok(sql.includes(table), `Missing hardened table: ${table}`);
+  assert.ok(sql.includes('FROM PUBLIC, anon, authenticated'));
+  assert.ok(sql.includes('SELECT, INSERT, UPDATE, DELETE'));
+  assert.ok(sql.includes('TO authenticated'));
+  assert.ok(sql.includes('TO service_role'));
   assert.ok(!sql.includes('TRUNCATE'));
   assert.ok(!sql.includes('DROP TABLE'));
   assert.ok(!sql.includes('DELETE FROM'));
