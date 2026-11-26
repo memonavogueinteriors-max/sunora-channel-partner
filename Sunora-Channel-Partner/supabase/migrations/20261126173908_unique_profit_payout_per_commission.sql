@@ -22,9 +22,7 @@ BEGIN
   END IF;
 END;
 $$;
-
 ALTER TABLE public.commission_payouts
   ALTER COLUMN commission_id SET NOT NULL;
-
 CREATE UNIQUE INDEX IF NOT EXISTS commission_payouts_commission_id_uidx
   ON public.commission_payouts (commission_id);
