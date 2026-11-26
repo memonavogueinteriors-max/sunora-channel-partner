@@ -19,7 +19,7 @@ test('migration filenames match the applied live migration history', async () =>
     '20261126173908_unique_profit_payout_per_commission.sql',
     '20261126184841_20261126180000_remove_redundant_payout_unique_index.sql',
     '20261126185733_20261126190000_restrict_public_table_privileges.sql',
-    '20261126203001_partner_referral_status_notifications.sql'',
+    '20261126203001_partner_referral_status_notifications.sql',
     '20261126203500_partner_recursive_branch_read.sql'
   ]);
 });
