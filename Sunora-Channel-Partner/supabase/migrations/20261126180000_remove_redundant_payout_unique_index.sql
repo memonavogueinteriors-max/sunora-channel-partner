@@ -1,6 +1,6 @@
 -- Category 5: remove the redundant unique index introduced by the payout guard migration.
--- The table already has a unique constraint on commission_id; retain that constraint
--- and its backing index while removing the standalone duplicate index.
+-- Retain the unique constraint on commission_id and its backing index.
+-- Guard against a same-named but differently-defined constraint before cleanup.
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -8,8 +8,9 @@ BEGIN
     WHERE conrelid = 'public.commission_payouts'::regclass
       AND conname = 'commission_payouts_commission_id_key'
       AND contype = 'u'
+      AND pg_get_constraintdef(oid) = 'UNIQUE (commission_id)'
   ) THEN
-    RAISE EXCEPTION 'Expected unique constraint commission_payouts_commission_id_key is missing; refusing to drop redundant index.';
+    RAISE EXCEPTION 'Expected UNIQUE (commission_id) constraint commission_payouts_commission_id_key is missing or differs; refusing to drop redundant index.';
   END IF;
 
   IF EXISTS (
