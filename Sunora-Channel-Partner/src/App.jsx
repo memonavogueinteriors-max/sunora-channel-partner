@@ -48,7 +48,7 @@ const nav = [
   { name: 'Channel Partners', icon: Users },
   { name: 'Referral Network', icon: GitBranch },
   { name: 'Sales & Invoices', icon: ReceiptText },
-  { name: 'Commission Ledger', icon: BadgePercent },
+  { name: 'Profit Ledger', icon: BadgePercent },
   { name: 'Savings Ledger', icon: Wallet },
   { name: 'Payments', icon: CreditCard }
 ];
@@ -817,7 +817,7 @@ if (inviteError) {
 
     flash(
       tier.rate === null
-        ? 'Invoice saved. Commission rate above 150 panels requires manual approval.'
+        ? 'Invoice saved. Profit rate above 150 panels requires manual approval.'
         : 'Invoice and commission record saved. Commission is recorded, not yet approved or payable.'
     );
   }
@@ -1018,7 +1018,7 @@ if (inviteError) {
 
     if (tab === 'Sales & Invoices') rows = scopedSales;
     else if (tab === 'Payments') rows = scopedPayments;
-    else if (tab === 'Commission Ledger') rows = scopedCommissions;
+    else if (tab === 'Profit Ledger') rows = scopedCommissions;
     else rows = scopedPartners;
 
     const exportRows = rows.map(row => {
@@ -1370,9 +1370,9 @@ if (inviteError) {
           </section>
         )}
 
-        {tab === 'Commission Ledger' && (
+        {tab === 'Profit Ledger' && (
           <section className="panel">
-            <PanelHeading title="Commission ledger" subtitle="Per-invoice commission, calculated before VAT" />
+            <PanelHeading title="Profit ledger" subtitle="Per-invoice commission, calculated before VAT" />
 
             <div className="ledger-summary commission-summary">
               <div><span>Commission records</span><b>{scopedCommissions.length}</b></div>
@@ -1385,7 +1385,7 @@ if (inviteError) {
                 <thead>
                   <tr>
                     <th>Invoice</th><th>Partner</th><th>Panels</th><th>Tier</th>
-                    <th>Commission base</th><th>Rate</th><th>Commission</th>
+                    <th>Profit base</th><th>Rate</th><th>Commission</th>
                     <th>Approval</th><th>Eligibility</th>
                     {isAdmin && <th>Admin actions</th>}
                   </tr>
@@ -1721,7 +1721,7 @@ if (inviteError) {
             </div>
 
             <div className="form-hint report-note">
-              Commission base is taken from the stored commission records and excludes VAT. Project costs are displayed separately and are not added again to the commission base. This report is read-only.
+              Profit base is taken from the stored commission records and excludes VAT. Project costs are displayed separately and are not added again to the commission base. This report is read-only.
             </div>
           </section>
         )}
@@ -1797,7 +1797,7 @@ if (inviteError) {
                   <PanelHeading title="My commissions" subtitle="Approval and project eligibility status for your invoices" />
                   <div className="table-wrap">
                     <table>
-                      <thead><tr><th>Invoice</th><th>Panels</th><th>Currency</th><th>Commission base</th><th>Rate</th><th>Commission</th><th>Approval</th><th>Eligibility</th></tr></thead>
+                      <thead><tr><th>Invoice</th><th>Panels</th><th>Currency</th><th>Profit base</th><th>Rate</th><th>Commission</th><th>Approval</th><th>Eligibility</th></tr></thead>
                       <tbody>
                         {statementCommissions.map(c => (
                           <tr key={c.id}>
@@ -1959,7 +1959,7 @@ if (inviteError) {
             <div className="form-hint full-field">
               <b>{selectedRateCommission.sale?.invoice_number || 'Invoice'}</b> · {selectedRateCommission.panel_quantity} panels · Base {money(selectedRateCommission.commissionable_base_amount, selectedRateCommission.commission_currency)}. This rate requires Admin approval.
             </div>
-            <label className="full-field">Commission rate (%) *
+            <label className="full-field">Profit rate (%) *
               <input required type="number" min="0" max="100" step="0.01" value={manualRate} onChange={e => setManualRate(e.target.value)} placeholder="Enter approved rate" />
             </label>
             <div className="form-hint full-field">
