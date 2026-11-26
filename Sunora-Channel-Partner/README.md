@@ -7,7 +7,7 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 - **Production URL:** https://sunora-channel-partner.vercel.app
 - **Supabase project:** `gzuozbhrzwbugbkdeogb` (active/healthy)
 - **Partner invitation Edge Function:** `partner-invite` — active, version 6, JWT required
-- **Production deployment verification:** The Accounts payout UI was merged in PR #1 (commit `82b7a1a`). The Vercel status check for that commit is pending; the connected Vercel tools cannot resolve the project and the public URL cannot be independently opened, so live production is not yet confirmed.
+- **Production deployment verification:** Vercel status check for merged commit `82b7a1a` is **success**. The connected Vercel tools cannot resolve the project and the public URL could not be independently opened; the deployment check passed, but live UI interaction is not independently verified.
 
 ## Implemented features
 
@@ -30,7 +30,7 @@ React + Vite frontend with Supabase Auth, PostgreSQL and Row Level Security.
 - Database trigger guardrails re-check eligibility and amount/currency, lock the profit record, and prevent direct-table bypass.
 - Pending and paid transitions are audit logged; a paid payout triggers partner notification when the partner has a linked portal login.
 - Rollback-only QA was run against the migration before applying; no payout records were created. The live payout table remains empty.
-- Accounts payout UI is merged in PR #1; live production deployment and end-to-end verification remain pending.
+- Accounts payout UI is merged in PR #1; Vercel check succeeded for the merge commit, but live browser interaction remains unverified.
 
 ## Sale integrity update (Nov 26, 2026)
 
