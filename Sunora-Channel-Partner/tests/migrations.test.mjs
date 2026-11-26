@@ -53,7 +53,7 @@ test('social profile migration uses a non-null empty-object JSONB default', asyn
 });
 
 test('public table ACL hardening removes anon and truncate privileges from exposed RLS tables while preserving authenticated CRUD', async () => {
-  const sql = await readFile(new URL('../supabase/migrations/20261126190000_restrict_public_table_privileges.sql', import.meta.url), 'utf8');
+  const sql = await readFile(new URL('../supabase/migrations/20261126185733_20261126190000_restrict_public_table_privileges.sql', import.meta.url), 'utf8');
   const tables = ['public.referrals', 'public.commission_payouts', 'public.sale_commissions', 'public.sale_project_costs', 'public.sunora_audit_log', 'public.sunora_product_prices'];
   for (const table of tables) assert.ok(sql.includes(table), `Missing hardened table: ${table}`);
   assert.ok(sql.includes('FROM PUBLIC, anon, authenticated'));
