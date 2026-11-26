@@ -4,7 +4,7 @@ import { readdir, readFile } from 'node:fs/promises';
 
 const migrationDir = new URL('../supabase/migrations/', import.meta.url);
 
-test('migration filenames are ordered and aligned with the recorded production versions', async () => {
+test('migration filenames are reconciled with live versions plus the pending ACL hardening migration', async () => {
   const files = (await readdir(migrationDir)).filter(file => file.endsWith('.sql')).sort();
   assert.deepEqual(files, [
     '20261126083905_create_partner_referrals_pipeline.sql',
