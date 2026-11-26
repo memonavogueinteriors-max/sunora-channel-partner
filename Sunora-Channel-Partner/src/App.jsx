@@ -289,14 +289,14 @@ export default function App() {
           .order('created_at', { ascending: false })
           .limit(100)
       );
-
-      requests.push(
-        supabase.from('notifications')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(100)
-      );
     }
+
+    requests.push(
+      supabase.from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100)
+    );
 
     const results = await Promise.all(requests);
     const firstError = results.find(r => r.error)?.error;
@@ -320,7 +320,7 @@ export default function App() {
     setProjectCosts(results[6].data || []);
     setReferrals(results[7].data || []);
     setAuditLogs(userRole === 'admin' ? (results[8]?.data || []) : []);
-    setNotifications(userRole === 'admin' ? (results[9]?.data || []) : []);
+    setNotifications(userRole === 'admin' ? (results[9]?.data || []) : (results[8]?.data || []));
 
     setBusy(false);
   }
@@ -1088,7 +1088,7 @@ async function addPartner(e) {
   }
 
   async function markNotificationRead(id) {
-    if (!isAdmin) return;
+    if (!session) return;
 
     const readAt = new Date().toISOString();
 
@@ -1408,7 +1408,7 @@ async function addPartner(e) {
     ...nav,
     ...(isStaff ? [{ name: 'Profit Payouts', icon: CreditCard }] : []),
     { name: isPartner ? 'My Referrals' : 'Referrals', icon: GitBranch },
-    ...(isAdmin ? [{ name: 'Notifications', icon: Bell }] : []),
+    ...(profile ? [{ name: 'Notifications', icon: Bell }] : []),
     ...(isAdmin ? [{ name: 'Monthly Reports', icon: ChartNoAxesCombined }] : []),
     ...(isPartner ? [{ name: 'My Monthly Statement', icon: ClipboardList }] : [])
   ];
@@ -1880,16 +1880,16 @@ async function addPartner(e) {
           </section>
         )}
 
-        {/* ADMIN-ONLY NOTIFICATIONS */}
-        {tab === 'Notifications' && isAdmin && (
+        {/* USER NOTIFICATIONS — RLS limits rows to the current user */}
+        {tab === 'Notifications' && profile && (
           <section className="panel">
             <PanelHeading
-              title="Admin Notifications"
-              subtitle="Important activity across the Sunora partner portal"
+              title={isAdmin ? "Admin Notifications" : "My Notifications"}
+              subtitle={isAdmin ? "Important activity across the Sunora partner portal" : "Updates related to your account and referrals"}
               action={
                 <button
                   className="secondary-btn"
-                  onClick={() => loadData('admin')}
+                  onClick={() => loadData()}
                   disabled={busy}
                 >
                   <RefreshCw size={16} /> Refresh
@@ -1935,7 +1935,7 @@ async function addPartner(e) {
                 ))}
               </div>
             ) : (
-              <Empty text="No admin notifications yet." />
+              <Empty text={isAdmin ? "No admin notifications yet." : "No notifications yet."} />
             )}
           </section>
         )}
