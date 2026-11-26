@@ -63,7 +63,7 @@ No temporary QA records were left in the database after rollback tests.
 
 ## Database setup / migration warning
 
-`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has thirteen migrations recorded. Category 5 restored two missing source migrations and aligned migration filenames with the recorded live versions. The referrals table privilege-hardening migration is applied and read-back verified. Full clean-install certification is still blocked because the starter schema lacks several current financial and notification objects. Do not recreate production or apply the starter schema until full clean-install validation passes.
+`supabase/schema.sql` is an older starter schema and is **not a complete current-production bootstrap**. The live database has fourteen migrations recorded. Category 5 restored two missing source migrations and aligned migration filenames with the recorded live versions. The referrals table privilege-hardening migration is applied and read-back verified. Full clean-install certification is still blocked because the starter schema lacks several current financial and notification objects. Do not recreate production or apply the starter schema until full clean-install validation passes.
 
 For the existing project, changes are applied through reviewed Supabase migrations. For local development:
 
@@ -87,6 +87,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
   - Google Sheets sync implementation with safe dry-run, retry and idempotency (no external writes).
   - Zoho Books integration scaffolding only, pending credentials and authorization.
   - Recursive referral-branch visibility with secure RLS checks.
+  - Recursive partner-network branch visibility via a safe display-only RPC, with cycle-safe recursion and no broadening of partners-table RLS — implemented and live.
   - Migration-source reconciliation and clean-install chain.
   - Security/performance cleanup and acceptance tests outside Category 2.
 
@@ -98,6 +99,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 - The performance advisor reports 24 unused indexes (14 FK-supporting indexes plus 10 pre-existing). Do not drop them without query and FK analysis.
 - Live read-back confirms the duplicate unique index on `commission_payouts.commission_id` was removed while the unique constraint remains.
 - Referral status notifications are in-app only. The trigger function has a fixed `search_path` and execution revoked from `PUBLIC`, `anon`, and `authenticated`. Authenticated notification updates are granted only on `read_at`, constrained by the existing own-row RLS update policy.
+- Recursive partner-network access uses a `SECURITY DEFINER` RPC with fixed `search_path`, `UNION` cycle deduplication, and only display fields returned; partners-table RLS is not broadened.
 - Live catalog inspection found broad table privileges including `TRUNCATE` on six RLS-protected tables (`referrals`, `commission_payouts`, `sale_commissions`, `sale_project_costs`, `sunora_audit_log`, and `sunora_product_prices`). Migration `20261126185733` removed those grants from `PUBLIC`, `anon`, and `authenticated`, restored authenticated CRUD and service-role access, and was read-back verified: anonymous privileges are all false, authenticated CRUD remains true but `TRUNCATE` is false, and RLS is enabled on all six tables.
 
 ## Finance rules currently in code
