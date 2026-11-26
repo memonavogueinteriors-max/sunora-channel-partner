@@ -101,6 +101,8 @@ export default function App() {
   const [productPrices, setProductPrices] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [referrals, setReferrals] = useState([]);
+  const [referralForm, setReferralForm] = useState({ contact_name: '', company: '', email: '', phone: '', notes: '' });
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -192,6 +194,7 @@ export default function App() {
         setProjectCosts([]);
         setAuditLogs([]);
         setNotifications([]);
+        setReferrals([]);
         setTab('Dashboard');
         setLoading(false);
       }
@@ -252,6 +255,10 @@ export default function App() {
 
       supabase.from('sale_project_costs')
         .select('*')
+        .order('created_at', { ascending: false }),
+
+      supabase.from('referrals')
+        .select('*, partner:partners!referrals_partner_id_fkey(id,partner_code,full_name)')
         .order('created_at', { ascending: false })
     ];
 
@@ -291,8 +298,9 @@ export default function App() {
     setProductPrices(results[4].data || []);
     setCommissionPayouts(results[5].data || []);
     setProjectCosts(results[6].data || []);
-    setAuditLogs(userRole === 'admin' ? (results[7]?.data || []) : []);
-    setNotifications(userRole === 'admin' ? (results[8]?.data || []) : []);
+    setReferrals(results[7].data || []);
+    setAuditLogs(userRole === 'admin' ? (results[8]?.data || []) : []);
+    setNotifications(userRole === 'admin' ? (results[9]?.data || []) : []);
 
     setBusy(false);
   }
@@ -334,6 +342,7 @@ export default function App() {
   );
 
   const ownPartner = partners.find(p => p.user_id === session?.user?.id);
+  const scopedReferrals = isStaff ? referrals : referrals.filter(r => r.partner_id === ownPartner?.id);
 
   const scopedSales = isStaff
     ? sales
@@ -603,6 +612,28 @@ export default function App() {
   // ---------------------------------------------------------
 
  
+async function addReferral(e) {
+  e.preventDefault();
+  if (!ownPartner) return;
+  setBusy(true); setError('');
+  const payload = { ...referralForm, partner_id: ownPartner.id, created_by: session?.user?.id, status: 'New' };
+  const { error: insertError } = await supabase.from('referrals').insert(payload);
+  if (insertError) { setError(insertError.message); setBusy(false); return; }
+  setReferralForm({ contact_name: '', company: '', email: '', phone: '', notes: '' });
+  await loadData(); flash('Referral submitted.'); setBusy(false);
+}
+
+
+async function updateReferralStatus(referralId, status) {
+  if (!isStaff) return;
+  setBusy(true);
+  const { error: updateError } = await supabase.from('referrals').update({ status }).eq('id', referralId);
+  if (updateError) setError(updateError.message);
+  else { await loadData(); flash('Referral status updated.'); }
+  setBusy(false);
+}
+
+
 async function addPartner(e) {
   e.preventDefault();
   setBusy(true);
@@ -1152,6 +1183,7 @@ if (inviteError) {
 
   const visibleNav = [
     ...nav,
+    { name: isPartner ? 'My Referrals' : 'Referrals', icon: GitBranch },
     ...(isAdmin ? [{ name: 'Notifications', icon: Bell }] : []),
     ...(isAdmin ? [{ name: 'Monthly Reports', icon: ChartNoAxesCombined }] : []),
     ...(isPartner ? [{ name: 'My Monthly Statement', icon: ClipboardList }] : [])
@@ -1335,6 +1367,25 @@ if (inviteError) {
             />
             <Toolbar search={search} setSearch={setSearch} exportCsv={exportCsv} />
             <PartnersTable rows={visiblePartners} onSelect={p => setSearch(p.partner_code)} />
+          </section>
+        )}
+
+        {(tab === 'Referrals' || tab === 'My Referrals') && (
+          <section className="panel">
+            <PanelHeading title={isPartner ? 'My referrals' : 'Referral pipeline'} subtitle={isPartner ? 'Submit leads and track their progress' : 'Track partner-submitted leads across the pipeline'} action={isPartner && <button className="primary-btn" onClick={() => document.getElementById('referral-form')?.scrollIntoView({ behavior: 'smooth' })}><Plus size={16}/> Add referral</button>} />
+            {isPartner && <form id="referral-form" className="form-grid referral-form" onSubmit={addReferral}>
+              <label>Contact name *<input required value={referralForm.contact_name} onChange={e=>setReferralForm(f=>({...f,contact_name:e.target.value}))} /></label>
+              <label>Company<input value={referralForm.company} onChange={e=>setReferralForm(f=>({...f,company:e.target.value}))}/></label>
+              <label>Email<input type="email" value={referralForm.email} onChange={e=>setReferralForm(f=>({...f,email:e.target.value}))}/></label>
+              <label>Phone<input value={referralForm.phone} onChange={e=>setReferralForm(f=>({...f,phone:e.target.value}))}/></label>
+              <label className="full-field">Notes<textarea rows="3" value={referralForm.notes} onChange={e=>setReferralForm(f=>({...f,notes:e.target.value}))}/></label>
+              <div className="modal-actions"><button className="primary-btn" disabled={busy}>{busy?'Submitting…':'Submit referral'}</button></div>
+            </form>}
+            <div className="table-wrap">
+              <table><thead><tr>{isStaff && <th>Partner</th>}<th>Lead</th><th>Company</th><th>Contact</th><th>Date</th><th>Status</th></tr></thead>
+                <tbody>{scopedReferrals.map(r=><tr key={r.id}>{isStaff&&<td><b>{r.partner?.full_name||'Partner'}</b><small>{r.partner?.partner_code||''}</small></td>}<td><b>{r.contact_name}</b></td><td>{r.company||'—'}</td><td>{r.email||r.phone||'—'}</td><td>{dateLabel(r.created_at?.slice(0,10))}</td><td>{isStaff?<select className="referral-status-select" value={r.status} onChange={e=>updateReferralStatus(r.id,e.target.value)}>{['New','Contacted','Qualified','Converted','Lost'].map(s=><option key={s}>{s}</option>)}</select>:<span className="status">{r.status}</span>}</td></tr>)}</tbody>
+              </table>{!scopedReferrals.length&&<Empty text="No referrals yet."/>}
+            </div>
           </section>
         )}
 
