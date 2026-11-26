@@ -31,7 +31,7 @@ test('referrals baseline migration creates the table, scoped RLS policies, and t
     'created_by uuid NOT NULL DEFAULT auth.uid()',
     'CREATE INDEX referrals_partner_created_idx',
     'CREATE INDEX referrals_status_created_idx',
-    'CREATE FUNCTION public.set_referrals_updated_at()',
+    'CREATE OR REPLACE FUNCTION public.set_referrals_updated_at()',
     'CREATE TRIGGER referrals_set_updated_at',
     'ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY',
     'CREATE POLICY referrals_read_own_or_staff',
