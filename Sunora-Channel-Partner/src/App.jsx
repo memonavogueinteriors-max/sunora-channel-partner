@@ -33,7 +33,18 @@ const dateLabel = d =>
     day: '2-digit', month: 'short', year: 'numeric'
   }) : '—';
 
-const currentMonth = () => new Date().toISOString().slice(0, 7);
+const currentDubaiDate = () => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Dubai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
+const currentMonth = () => currentDubaiDate().slice(0, 7);
 
 const monthLabel = value => {
   if (!value) return '';
@@ -132,7 +143,7 @@ export default function App() {
   });
   const [selectedPayout, setSelectedPayout] = useState(null);
   const [payoutPaymentForm, setPayoutPaymentForm] = useState({
-    payment_date: new Date().toISOString().slice(0, 10),
+    payment_date: currentDubaiDate(),
     payment_reference: '',
     notes: ''
   });
@@ -151,7 +162,7 @@ export default function App() {
     partner_id: '',
     referral_id: '',
     invoice_number: '',
-    invoice_date: new Date().toISOString().slice(0, 10),
+    invoice_date: currentDubaiDate(),
     country: 'United Arab Emirates',
     invoice_currency: 'AED',
     panel_size: '60x60',
@@ -167,7 +178,7 @@ export default function App() {
   const [paymentForm, setPaymentForm] = useState({
     partner_id: '',
     amount: '',
-    payment_date: new Date().toISOString().slice(0, 10),
+    payment_date: currentDubaiDate(),
     reference: '',
     notes: ''
   });
@@ -833,7 +844,7 @@ async function addPartner(e) {
       partner_id: '',
       referral_id: '',
       invoice_number: '',
-      invoice_date: new Date().toISOString().slice(0, 10),
+      invoice_date: currentDubaiDate(),
       country: 'United Arab Emirates',
       invoice_currency: 'AED',
       panel_size: '60x60',
@@ -1022,7 +1033,7 @@ async function addPartner(e) {
       partner_name: commission?.partner?.full_name || '—'
     });
     setPayoutPaymentForm({
-      payment_date: new Date().toISOString().slice(0, 10),
+      payment_date: currentDubaiDate(),
       payment_reference: '',
       notes: payout.notes || ''
     });
@@ -1049,7 +1060,7 @@ async function addPartner(e) {
       return;
     }
     setSelectedPayout(null);
-    setPayoutPaymentForm({ payment_date: new Date().toISOString().slice(0, 10), payment_reference: '', notes: '' });
+    setPayoutPaymentForm({ payment_date: currentDubaiDate(), payment_reference: '', notes: '' });
     await loadData('admin');
     flash('Profit payout marked paid and recorded.');
   }
@@ -1077,7 +1088,7 @@ async function addPartner(e) {
     setPaymentForm({
       partner_id: '',
       amount: '',
-      payment_date: new Date().toISOString().slice(0, 10),
+      payment_date: currentDubaiDate(),
       reference: '',
       notes: ''
     });
