@@ -81,7 +81,6 @@ declare
   v_quantity numeric;
   v_unit_price numeric;
   v_cost_amount numeric;
-  v_savings_rate numeric;
   v_panel_subtotal numeric;
   v_subtotal numeric;
   v_vat_amount numeric;
@@ -109,7 +108,7 @@ begin
   if p_invoice_date is null then raise exception 'Invoice date is required.'; end if;
   if trim(coalesce(p_country, '')) = '' then raise exception 'Customer country is required.'; end if;
   if v_currency not in ('AED', 'USD') then raise exception 'Only AED and USD invoices are supported.'; end if;
-  if p_panel_size is null or p_panel_size not in ('60x60', '40x120') then raise exception 'Unsupported panel size.'; end if;
+  if p_panel_size not in ('60x60', '40x120') then raise exception 'Unsupported panel size.'; end if;
   if p_panel_quantity is null or p_panel_quantity < 1 or p_panel_quantity <> trunc(p_panel_quantity) then
     raise exception 'Panel quantity must be a positive whole number.';
   end if;
@@ -120,7 +119,6 @@ begin
   v_quantity := p_panel_quantity;
   v_unit_price := round(p_unit_price, 2);
   v_cost_amount := round(p_additional_cost_amount, 2);
-  v_savings_rate := round(p_savings_rate, 2);
   v_exchange_rate := case when v_currency = 'USD' then 3.68 else 1 end;
   v_panel_subtotal := round(v_quantity * v_unit_price, 2);
   v_subtotal := round(v_panel_subtotal + v_cost_amount, 2);
@@ -177,7 +175,7 @@ begin
   ) values (
     p_partner_id, p_referral_id, v_invoice_number, p_invoice_date,
     'Sunora ' || p_panel_size || ' Wellness Panel',
-    v_quantity, v_unit_price, v_total, v_savings_rate, coalesce(p_notes, ''), auth.uid(),
+    v_quantity, v_unit_price, v_total, p_savings_rate, coalesce(p_notes, ''), auth.uid(),
     trim(p_country), v_currency, v_exchange_rate, p_panel_size, v_quantity,
     v_panel_subtotal, v_cost_amount, v_subtotal, 5, v_vat_amount,
     v_total, v_subtotal, 'in_progress'
@@ -226,7 +224,7 @@ begin
        or v_sale.total_inc_vat is distinct from v_total
        or v_sale.invoice_amount is distinct from v_total
        or v_sale.commissionable_base_amount is distinct from v_subtotal
-       or v_sale.savings_rate is distinct from v_savings_rate
+       or v_sale.savings_rate is distinct from p_savings_rate
        or v_sale.notes is distinct from coalesce(p_notes, '') then
       raise exception 'An invoice with this number already exists but its details differ. Review the existing record instead of retrying.';
     end if;
@@ -305,6 +303,7 @@ begin
   );
 end;
 $function$
+
 
 
 drop trigger if exists sunora_validate_sale_referral_insert on public.sales;
