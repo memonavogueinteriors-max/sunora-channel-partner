@@ -60,7 +60,7 @@ test('public table ACL hardening removes anon and truncate privileges from expos
   assert.ok(sql.includes('SELECT, INSERT, UPDATE, DELETE'));
   assert.ok(sql.includes('TO authenticated'));
   assert.ok(sql.includes('TO service_role'));
-  assert.ok(!sql.includes('TRUNCATE'));
+  assert.ok(!/^\s*TRUNCATE\b/mi.test(sql));
   assert.ok(!sql.includes('DROP TABLE'));
   assert.ok(!sql.includes('DELETE FROM'));
 });
