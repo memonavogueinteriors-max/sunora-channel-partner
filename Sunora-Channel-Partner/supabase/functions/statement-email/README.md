@@ -1,5 +1,3 @@
-# Monthly statement email scaffold
+# Statement email function
 
-The shared template helper in `supabase/functions/_shared/statementEmail.js` creates a SUNORA-branded statement notice with a fixed portal origin, HTML-escaped partner values, subject-line newline sanitization, and a month-specific PDF filename.
-
-It does **not** send email or attach a PDF. No Resend/Mailgun/SMTP credentials are stored, and no email delivery function is deployed. This is a reusable template-only scaffold. The separate partner invitation/welcome email and all Category 2 live verification remain parked.
+Admin/Staff-only authenticated Edge Function sends the monthly statement PDF to the partner's registered email address via Resend. Requires `RESEND_API_KEY`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` secrets. Requires migration `statement_email_log`. Request: POST JSON `{ partnerId, month, pdfBase64 }` with a valid Supabase JWT. Duplicate sends are blocked per partner/month; failed attempts may be retried. Do not send real partner emails during development; test only with a controlled recipient. Partner invitation emails and Category 2 remain parked.
