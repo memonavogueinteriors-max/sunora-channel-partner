@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { welcomeEmailHtml } from "../_shared/welcome-email.ts";
+import { welcomeEmailHtml } from "../_shared/welcome-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://sunora-channel-partner.vercel.app",
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
     ) return response({ error: "A valid partner ID is required." }, 400);
 
     const { data: partner, error: partnerError } = await adminClient
-      .from("partners").select("id, full_name, email, user_id, status").eq("id", partnerId).single();
+      .from("partners").select("id, full_name, partner_code, email, user_id, status, created_at").eq("id", partnerId).single();
     if (partnerError || !partner) return response({ error: "Partner record not found." }, 404);
     if (!partner.email?.trim()) return response({ error: "Partner email is required for login." }, 400);
     if (partner.user_id) return response({ error: "This partner already has a login." }, 409);
