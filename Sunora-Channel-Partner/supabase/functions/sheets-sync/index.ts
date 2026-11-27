@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SALES_SHEET_HEADERS, collectPages, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest } from "../_shared/sheetsSync.js";
+import { SALES_SHEET_HEADERS, chunkValues, collectPages, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest } from "../_shared/sheetsSync.js";
 const corsHeaders = { "Access-Control-Allow-Origin":"https://sunora-channel-partner.vercel.app", "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods":"POST, OPTIONS" };
 function respond(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});}
 function base64Url(bytes:Uint8Array){let binary="";for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");}
@@ -87,10 +87,16 @@ Deno.serve(async(req)=>{
     try{
       sales=await collectPages((from:number,to:number)=>admin.from("sales").select("id,partner_id,invoice_number,invoice_date,product_description,panel_quantity,quantity,invoice_currency,subtotal_ex_vat,vat_amount,total_inc_vat,invoice_amount").order("invoice_date",{ascending:true}).order("id",{ascending:true}).range(from,to));
     }catch{return respond({error:"Could not read all sales data."},500);}
-    const partnerIds=[...new Set((sales||[]).map(s=>s.partner_id).filter(Boolean))];
-    const {data:partners,error:partnerError}=partnerIds.length?await admin.from("partners").select("id,partner_code,full_name").in("id",partnerIds):{data:[],error:null};
-    if(partnerError)return respond({error:"Could not read partner references."},500);
-    const mapped=mapSalesToSheetRows(sales||[],partners||[]);
+    const partnerIds=[...new Set(sales.map(s=>s.partner_id).filter(Boolean))];
+    const partners=[];
+    try{
+      for(const idChunk of chunkValues(partnerIds,100){
+        const {data,error}=await admin.from("partners").select("id,partner_code,full_name").in("id",idChunk);
+        if(error)throw error;
+        partners.push(...(data||[]));
+      }
+    }catch{return respond({error:"Could not read all partner references."},500);}
+    const mapped=mapSalesToSheetRows(sales,partners);
     if(mapped.duplicateIds.length)return respond({error:"Duplicate sale IDs were returned by the source; sync stopped.",duplicate_ids:mapped.duplicateIds},409);
     if(dryRun)return respond({success:true,dry_run:true,row_count:mapped.rows.length,preview:mapped.rows.slice(0,5),message:"Preview only. No Google Sheet was read or written."});
     const spreadsheetId=Deno.env.get("GOOGLE_SPREADSHEET_ID"),rawCredentials=Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON"),tab=(Deno.env.get("GOOGLE_SHEET_TAB_NAME")||"Sales").trim();
