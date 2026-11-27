@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { welcomeEmailHtml } from "../_shared/welcome-email.ts";
+import { welcomeEmailHtml } from "./welcome-email.ts";
 const cors={"Access-Control-Allow-Origin":"https://sunora-channel-partner.vercel.app","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json"};
 const response=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 Deno.serve(async req=>{
