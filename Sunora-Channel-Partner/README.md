@@ -84,12 +84,16 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 - **Category 5:** Current focus; remaining implementation and safe verification:
   - Partner referral status/conversion in-app notifications and RLS-scoped partner inbox — implemented and live; no live referral UI/attribution tests performed.
   - Partner monthly statement PDF export — implemented; email-delivery scaffolding remains (no real emails).
-  - Google Sheets sync implementation with safe dry-run, retry and idempotency (no external writes).
-  - Zoho Books integration scaffolding only, pending credentials and authorization.
+  - Google Sheets sales-sync Edge Function scaffold proposed in this PR: Admin/Staff-only, dry-run by default, stable sale-ID upsert, read-back verification, retries, and a service-role-only lease. The lock migration is pending review; the function is not deployed and no spreadsheet writes have been performed.
+  - Zoho Books integration scaffolding only, pending credentials and authorization (not implemented yet).
   - Recursive referral-branch visibility with secure RLS checks.
   - Recursive partner-network branch visibility via a safe display-only RPC, with cycle-safe recursion and no broadening of partners-table RLS — implemented and live; the explicit partner-role guard is applied and read-back verified.
-  - Migration-source reconciliation and clean-install chain.
+  - Migration-source reconciliation and clean-install chain — current source migration list is aligned to the live 15 migrations; a new Sheets lock migration is pending review and clean-install certification remains incomplete.
   - Security/performance cleanup and acceptance tests outside Category 2.
+
+## Google Sheets sync (Category 5 proposal)
+
+The current PR adds a sales-only sync scaffold. It excludes partner contact details, notes, authentication, payouts, and commission records. Dry-run is the default and previews five rows without Google API calls. Write mode requires explicit `dry_run: false`, Google service-account and spreadsheet secrets, and the service-role lock migration. The code is not deployed and write mode is not enabled; a Deno check, migration apply, secrets setup, and destination approval are still required.
 
 ## Security and performance notes
 
