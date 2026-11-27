@@ -91,7 +91,8 @@ Deno.serve(async(req)=>{
         partners.push(...(data||[]));
       }
     }catch{return respond({error:"Could not read all partner references."},500);}
-    const mapped=mapSalesToSheetRows(sales,partners);
+    let mapped;
+    try{mapped=mapSalesToSheetRows(sales,partners);}catch(error){if(error instanceof Error&&error.message==="Every sale must reference a known partner before sync.")return respond({error:"One or more sales have unresolved partner references. Sync stopped before writing."},409);throw error;}
     if(mapped.duplicateIds.length)return respond({error:"Duplicate sale IDs were returned by the source; sync stopped.",duplicate_ids:mapped.duplicateIds},409);
     if(dryRun)return respond({success:true,dry_run:true,row_count:mapped.rows.length,preview:mapped.rows.slice(0,5),message:"Preview only. No Google Sheet was read or written."});
     const spreadsheetId=Deno.env.get("GOOGLE_SPREADSHEET_ID"),rawCredentials=Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON"),tab=(Deno.env.get("GOOGLE_SHEET_TAB_NAME")||"Sales").trim();
@@ -103,11 +104,12 @@ Deno.serve(async(req)=>{
       const token=await googleAccessToken(rawCredentials);
       let values=await readSheetValues(spreadsheetId,tab,token);
       if(!values.length||!values[0]?.length){await writeHeader(spreadsheetId,tab,token);values=await readSheetValues(spreadsheetId,tab,token);}
-      if(JSON.stringify(values[0]||[])!==JSON.stringify(SALES_SHEET_HEADERS))return respond({error:"Sheet header mismatch. Sync stopped to avoid writing into the wrong layout."},409);
+      if(!verifySheetSyncRows(values,[]))return respond({error:"Sheet header mismatch. Sync stopped to avoid writing into the wrong layout."},409);
       const baselineValues=await readSheetValues(spreadsheetId,tab,token),baselinePlan=planSalesSheetSync(baselineValues,mapped.rows);
       if(baselinePlan.duplicateExistingIds.length)return respond({error:"Duplicate sale IDs already exist in the sheet. Resolve duplicates before syncing.",duplicate_ids:baselinePlan.duplicateExistingIds},409);
       for(let attempt=1;attempt<=3;attempt++){
         values=await readSheetValues(spreadsheetId,tab,token);
+        if(!verifySheetSyncRows(values,[]))return respond({error:"Sheet header changed during sync. Sync stopped."},409);
         const plan=planSalesSheetSync(values,mapped.rows);
         if(plan.duplicateExistingIds.length)return respond({error:"Duplicate sale IDs already exist in the sheet. Resolve duplicates before syncing.",duplicate_ids:plan.duplicateExistingIds},409);
         if(!plan.updateRows.length&&!plan.appendRows.length&&verifySheetSyncRows(values,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
