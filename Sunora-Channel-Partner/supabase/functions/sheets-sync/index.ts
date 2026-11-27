@@ -123,5 +123,5 @@ Deno.serve(async(req)=>{
       }
       return respond({success:false,verified:false,error:"Sync could not be verified after three attempts. Retry is safe because rows use stable sale IDs and a service-role lock."},502);
     }finally{try{await admin.rpc("sunora_release_sheets_sync_lock",{p_owner_token:ownerToken});}catch{/* lease expires if release fails */}}
-  }catch(error){const errorType=error instanceof Error?error.name:"UnknownError",status=(error as Error&{status?:number}).status;console.error("sheets-sync failure",{request_id:requestId,error_type:errorType,http_status:Number.isInteger(status)&&status>=400&&status<=599?status:null});return respond(buildSafeSheetsSyncFailure(requestId),500);}
+  }catch(error){const errorType=error instanceof Error?error.name:"UnknownError",status=(error as Error&{status?:number}).status;console.error("sheets-sync failure",{request_id:requestId,error_type:errorType,http_status:typeof status === "number" && Number.isInteger(status) && status>=400 && status<=599 ? status : null});return respond(buildSafeSheetsSyncFailure(requestId),500);}
 });
