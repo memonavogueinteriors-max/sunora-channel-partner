@@ -42,3 +42,13 @@ export function planSalesSheetSync(existingValues = [], incomingRows = []) {
   }
   return { updateRows, appendRows, duplicateExistingIds, duplicateIncomingIds };
 }
+
+export function validateSheetsSyncRequest(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { valid: false, error: 'Request body must be a JSON object.' };
+  }
+  if (body.dry_run !== undefined && typeof body.dry_run !== 'boolean') {
+    return { valid: false, error: 'dry_run must be true or false.' };
+  }
+  return { valid: true, dryRun: body.dry_run !== false };
+}
