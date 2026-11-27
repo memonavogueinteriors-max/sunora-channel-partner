@@ -112,6 +112,6 @@ Deno.serve(async(req)=>{
         if(verifyRows(after,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
       }
       return respond({success:false,verified:false,error:"Sync could not be verified after three attempts. Retry is safe because rows use stable sale IDs and a service-role lock."},502);
-    }finally{await admin.rpc("sunora_release_sheets_sync_lock",{p_owner_token:ownerToken}).catch(()=>{});}
+    }finally{try{await admin.rpc("sunora_release_sheets_sync_lock",{p_owner_token:ownerToken});}catch{/* lease expires if release fails */}}
   }catch(error){console.error("sheets-sync failure",{error_type:error instanceof Error?error.name:"UnknownError"});return respond({error:error instanceof Error?error.message:"Sheets sync failed."},500);}
 });
