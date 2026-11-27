@@ -194,15 +194,15 @@ Deno.serve(async (req) => {
         return respond({ error: "Sheet header mismatch. Sync stopped to avoid writing into the wrong layout." }, 409);
       }
 
-      let totalUpdated = 0, totalAppended = 0;
+      const baselineValues = await readSheetValues(spreadsheetId, tab, token);
+      const baselinePlan = planSalesSheetSync(baselineValues, mapped.rows);
+      if (baselinePlan.duplicateExistingIds.length) return respond({ error: "Duplicate sale IDs already exist in the sheet. Resolve duplicates before syncing.", duplicate_ids: baselinePlan.duplicateExistingIds }, 409);
       for (let attempt = 1; attempt <= 3; attempt++) {
         values = await readSheetValues(spreadsheetId, tab, token);
         const plan = planSalesSheetSync(values, mapped.rows);
         if (plan.duplicateExistingIds.length) return respond({ error: "Duplicate sale IDs already exist in the sheet. Resolve duplicates before syncing.", duplicate_ids: plan.duplicateExistingIds }, 409);
-        totalUpdated += plan.updateRows.length;
-        totalAppended += plan.appendRows.length;
         if (!plan.updateRows.length && !plan.appendRows.length && verifyRows(values, mapped.rows)) {
-          return respond({ success: true, dry_run: false, verified: true, updated: totalUpdated, appended: totalAppended, attempts: attempt });
+          return respond({ success: true, dry_run: false, verified: true, updated: baselinePlan.updateRows.length, appended: baselinePlan.appendRows.length, attempts: attempt });
         }
         try {
           await applyPlan(spreadsheetId, tab, token, plan);
