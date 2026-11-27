@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SALES_SHEET_HEADERS, chunkValues, collectPages, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest } from "../_shared/sheetsSync.js";
+import { SALES_SHEET_HEADERS, buildSafeSheetsSyncFailure, chunkValues, collectPages, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest } from "../_shared/sheetsSync.js";
 const corsHeaders = { "Access-Control-Allow-Origin":"https://sunora-channel-partner.vercel.app", "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods":"POST, OPTIONS" };
 function respond(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});}
 function base64Url(bytes:Uint8Array){let binary="";for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");}
@@ -74,6 +74,7 @@ Deno.serve(async(req)=>{
   const authorization=req.headers.get("Authorization");
   if(!authorization?.startsWith("Bearer "))return respond({error:"Admin or Staff login required."},401);
   const admin=createClient(supabaseUrl,serviceKey,{auth:{autoRefreshToken:false,persistSession:false}});
+  const requestId=crypto.randomUUID();
   try{
     const {data:authData,error:authError}=await admin.auth.getUser(authorization.substring(7));
     if(authError||!authData.user)return respond({error:"Invalid login session."},401);
@@ -122,5 +123,5 @@ Deno.serve(async(req)=>{
       }
       return respond({success:false,verified:false,error:"Sync could not be verified after three attempts. Retry is safe because rows use stable sale IDs and a service-role lock."},502);
     }finally{try{await admin.rpc("sunora_release_sheets_sync_lock",{p_owner_token:ownerToken});}catch{/* lease expires if release fails */}}
-  }catch(error){console.error("sheets-sync failure",{error_type:error instanceof Error?error.name:"UnknownError"});return respond({error:error instanceof Error?error.message:"Sheets sync failed."},500);}
+  }catch(error){const errorType=error instanceof Error?error.name:"UnknownError",status=(error as Error&{status?:number}).status;console.error("sheets-sync failure",{request_id:requestId,error_type:errorType,http_status:Number.isInteger(status)&&status>=400&&status<=599?status:null});return respond(buildSafeSheetsSyncFailure(requestId),500);}
 });
