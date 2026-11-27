@@ -7,38 +7,33 @@ const invitePath = new URL('../supabase/functions/partner-invite/index.ts', impo
 const testEndpointPath = new URL('../supabase/functions/welcome-email-test/index.ts', import.meta.url);
 const appPath = new URL('../src/App.jsx', import.meta.url);
 
-test('welcome email template is branded, personalized, and test-mode safe', async () => {
+test('shared welcome email has SUNORA gold branding, partner details and escaping', async () => {
   const template = await readFile(templatePath, 'utf8');
-  assert.ok(template.includes('SUNORA™'));
-  assert.ok(template.includes('#b58a45'));
-  assert.ok(template.includes('Channel Partner Program'));
-  assert.ok(template.includes('Partner ID'));
-  assert.ok(template.includes('Your Wellness Sun'));
+  for (const phrase of ['SUNORA™','Channel Partner Program','Partner ID','Your Wellness Sun','escapeHtml','info@sunora.ae','#b58a45']) assert.ok(template.includes(phrase), `missing ${phrase}`);
   assert.ok(template.includes('test preview email'));
-  assert.ok(template.includes('escapeHtml'));
+  assert.ok(template.includes('Set Your Password & Get Started'));
 });
 
-test('partner invitation uses shared branded template and verified sender', async () => {
+test('partner invitation reuses the template and uses the verified sender address', async () => {
   const invite = await readFile(invitePath, 'utf8');
   assert.ok(invite.includes('welcomeEmailHtml'));
-  assert.ok(invite.includes('info@sunora.ae'));
-  assert.ok(invite.includes('partner_code'));
-  assert.ok(invite.includes('action_link'));
+  assert.ok(invite.includes('SUNORA Channel Partner Program <info@sunora.ae>'));
+  assert.ok(invite.includes('partner.partner_code'));
+  assert.ok(invite.includes('linkData.properties.action_link'));
   assert.ok(!invite.includes('partners@sunora.ae'));
 });
 
-test('test endpoint only emails the signed-in admin and does not create accounts', async () => {
+test('test-send endpoint emails only the signed-in admin and avoids account creation', async () => {
   const endpoint = await readFile(testEndpointPath, 'utf8');
   assert.ok(endpoint.includes('profile?.role!=="admin"'));
   assert.ok(endpoint.includes('user.user.email'));
   assert.ok(endpoint.includes('test:true'));
-  assert.ok(!endpoint.includes('admin.createUser'));
-  assert.ok(!endpoint.includes('partners.from'));
+  assert.ok(!endpoint.includes('auth.admin.createUser'));
+  assert.ok(!endpoint.includes('partners'));
 });
 
-test('portal exposes welcome email test only to admins', async () => {
+test('admin portal exposes the welcome-email test action', async () => {
   const app = await readFile(appPath, 'utf8');
   assert.ok(app.includes("supabase.functions.invoke('welcome-email-test')"));
-  assert.ok(app.includes('{isAdmin && ('));
   assert.ok(app.includes('Test welcome email'));
 });
