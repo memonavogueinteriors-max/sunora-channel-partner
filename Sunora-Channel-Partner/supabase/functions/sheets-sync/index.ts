@@ -91,7 +91,7 @@ Deno.serve(async(req)=>{
         partners.push(...(data||[]));
       }
     }catch{return respond({error:"Could not read all partner references."},500);}
-    let mapped;
+    let mapped: ReturnType<typeof mapSalesToSheetRows>;
     try{mapped=mapSalesToSheetRows(sales,partners);}catch(error){if(error instanceof Error&&error.message==="Every sale must reference a known partner before sync.")return respond({error:"One or more sales have unresolved partner references. Sync stopped before writing."},409);throw error;}
     if(mapped.duplicateIds.length)return respond({error:"Duplicate sale IDs were returned by the source; sync stopped.",duplicate_ids:mapped.duplicateIds},409);
     if(dryRun)return respond({success:true,dry_run:true,row_count:mapped.rows.length,preview:mapped.rows.slice(0,5),message:"Preview only. No Google Sheet was read or written."});
@@ -115,6 +115,7 @@ Deno.serve(async(req)=>{
         if(!plan.updateRows.length&&!plan.appendRows.length&&verifySheetSyncRows(values,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
         try{await applyPlan(spreadsheetId,tab,token,plan);}catch(error){const status=(error as Error&{status?:number}).status;if(status&&status<500&&status!==429)throw error;}
         const after=await readSheetValues(spreadsheetId,tab,token);
+        if(!verifySheetSyncRows(after,[]))return respond({error:"Sheet header changed during sync. Sync stopped."},409);
         if(verifySheetSyncRows(after,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
       }
       return respond({success:false,verified:false,error:"Sync could not be verified after three attempts. Retry is safe because rows use stable sale IDs and a service-role lock."},502);
