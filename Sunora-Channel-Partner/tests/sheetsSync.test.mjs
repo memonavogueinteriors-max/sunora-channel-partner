@@ -58,3 +58,8 @@ test('chunkValues handles empty lists and invalid sizes',()=>{
   assert.throws(()=>chunkValues([],1001),/chunkSize/);
   assert.throws(()=>chunkValues([],1.2),/chunkSize/);
 });
+
+test('collectPages rejects malformed responses and oversized pages',async()=>{
+  await assert.rejects(()=>collectPages(async()=>({data:null,error:null})),/data array/);
+  await assert.rejects(()=>collectPages(async()=>({data:[1,2,3],error:null}),2),/exceeded/);
+});
