@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { welcomeEmailHtml } from "../_shared/welcome-email.ts";
+import { welcomeEmailHtml } from "./welcome-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://sunora-channel-partner.vercel.app",
