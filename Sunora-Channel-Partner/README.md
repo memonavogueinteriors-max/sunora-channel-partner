@@ -88,7 +88,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
   - Zoho Books readiness helper added: no network/API/write functionality; credentials, OAuth authorization, organization ID, and integration direction remain required.
   - Recursive referral-branch visibility with secure RLS checks.
   - Recursive partner-network branch visibility via a safe display-only RPC, with cycle-safe recursion and no broadening of partners-table RLS — implemented and live; the explicit partner-role guard is applied and read-back verified.
-  - Migration-source reconciliation and clean-install chain — the live database has 15 applied migrations; source now includes the pending Sheets lock migration. Clean-install certification remains incomplete because the starter schema and migrations do not create all live tables.
+  - Migration-source reconciliation and clean-install chain — live has 15 applied migrations, source has 16 including the pending Sheets lock migration; six core live tables are still missing from the starter schema/migration chain. See `docs/category5-clean-install-gap.md` for read-only evidence and remediation steps.
   - Security/performance cleanup and acceptance tests outside Category 2.
 
 ## Google Sheets sync (Category 5)
