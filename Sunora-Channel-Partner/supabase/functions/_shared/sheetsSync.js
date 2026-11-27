@@ -67,3 +67,11 @@ export async function collectPages(fetchPage, pageSize = 500) {
     if (result.data.length < pageSize) return allRows;
   }
 }
+
+export function chunkValues(values = [], chunkSize = 100) {
+  if (!Array.isArray(values)) throw new TypeError('values must be an array.');
+  if (!Number.isInteger(chunkSize) || chunkSize < 1 || chunkSize > 1000) throw new RangeError('chunkSize must be an integer between 1 and 1000.');
+  const chunks = [];
+  for (let offset = 0; offset < values.length; offset += chunkSize) chunks.push(values.slice(offset, offset + chunkSize));
+  return chunks;
+}
