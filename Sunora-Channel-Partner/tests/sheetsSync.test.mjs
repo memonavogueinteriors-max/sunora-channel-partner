@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest, SALES_SHEET_HEADERS } from '../supabase/functions/_shared/sheetsSync.js';
+import { mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest, SALES_SHEET_HEADERS, buildSafeSheetsSyncFailure } from '../supabase/functions/_shared/sheetsSync.js';
 const sale = { id:'sale-001', partner_id:'partner-001', invoice_number:'SUN-001', invoice_date:'2026-11-27', product_description:'Sunora Panel', panel_quantity:4, invoice_currency:'AED', subtotal_ex_vat:1000, vat_amount:50, total_inc_vat:1050 };
 const partner = { id:'partner-001', partner_code:'CH202611001', full_name:'Test Partner' };
 test('maps a sale to a stable, minimal, 12-column sheet row',()=>{const result=mapSalesToSheetRows([sale],[partner]);assert.equal(result.rows.length,1);assert.equal(result.rows[0].length,SALES_SHEET_HEADERS.length);assert.equal(result.rows[0][0],sale.id);assert.equal(result.rows[0][3],partner.partner_code);assert.equal(result.rows[0][4],partner.full_name);assert.deepEqual(result.duplicateIds,[]);});
@@ -62,4 +62,16 @@ test('chunkValues handles empty lists and invalid sizes',()=>{
 test('collectPages rejects malformed responses and oversized pages',async()=>{
   await assert.rejects(()=>collectPages(async()=>({data:null,error:null})),/data array/);
   await assert.rejects(()=>collectPages(async()=>({data:[1,2,3],error:null}),2),/exceeded/);
+});
+
+
+test('safe sync failure response contains only a generic message and UUID reference',()=>{
+  const reference='d34c1b56-78e9-4abc-8def-0123456789ab';
+  const payload=buildSafeSheetsSyncFailure(reference);
+  assert.deepEqual(payload,{error:'Sheets sync failed. Internal details are withheld; check server logs using this reference.',request_id:reference});
+  assert.ok(!JSON.stringify(payload).includes('private_key'));
+});
+
+test('invalid request references are replaced with unavailable',()=>{
+  assert.equal(buildSafeSheetsSyncFailure('bad').request_id,'unavailable');
 });
