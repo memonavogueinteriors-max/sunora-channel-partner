@@ -8,6 +8,7 @@ The sales-sync Edge Function and its service-role lock are merged into the repos
 - Defaults to `dry_run: true`. Dry-run maps sales and returns a small preview; it does not call Google APIs or read/write a spreadsheet.
 - Write mode requires explicit `dry_run: false`, the spreadsheet ID, and a Google service-account JSON secret.
 - Sales are fetched in bounded 500-row pages with deterministic invoice-date/ID ordering, so the Supabase REST row limit cannot silently truncate the sync. Page errors fail the sync instead of returning partial data.
+- Partner IDs are looked up in 100-ID chunks to keep request URLs bounded and prevent the related partner list from being silently truncated by the REST row limit.
 - Only invoice/sales fields are mirrored. Emails, phone numbers, auth data, payout data and notes are excluded.
 - Google Sheets API values use `RAW`, so formula-like text is stored as text.
 - Sale database IDs are the stable key in column A. Existing IDs update in place; missing IDs append.
