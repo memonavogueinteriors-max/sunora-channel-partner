@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SALES_SHEET_HEADERS, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest } from "../_shared/sheetsSync.js";
+import { SALES_SHEET_HEADERS, collectPages, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest } from "../_shared/sheetsSync.js";
 const corsHeaders = { "Access-Control-Allow-Origin":"https://sunora-channel-partner.vercel.app", "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods":"POST, OPTIONS" };
 function respond(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});}
 function base64Url(bytes:Uint8Array){let binary="";for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");}
@@ -83,8 +83,10 @@ Deno.serve(async(req)=>{
     const validation=validateSheetsSyncRequest(body) as {valid:boolean;error?:string;dryRun?:boolean};
     if(!validation.valid)return respond({error:validation.error||"Invalid request body."},400);
     const dryRun=validation.dryRun===true;
-    const {data:sales,error:salesError}=await admin.from("sales").select("id,partner_id,invoice_number,invoice_date,product_description,panel_quantity,quantity,invoice_currency,subtotal_ex_vat,vat_amount,total_inc_vat,invoice_amount").order("invoice_date",{ascending:true});
-    if(salesError)return respond({error:"Could not read sales data."},500);
+    let sales;
+    try{
+      sales=await collectPages((from:number,to:number)=>admin.from("sales").select("id,partner_id,invoice_number,invoice_date,product_description,panel_quantity,quantity,invoice_currency,subtotal_ex_vat,vat_amount,total_inc_vat,invoice_amount").order("invoice_date",{ascending:true}).order("id",{ascending:true}).range(from,to));
+    }catch{return respond({error:"Could not read all sales data."},500);}
     const partnerIds=[...new Set((sales||[]).map(s=>s.partner_id).filter(Boolean))];
     const {data:partners,error:partnerError}=partnerIds.length?await admin.from("partners").select("id,partner_code,full_name").in("id",partnerIds):{data:[],error:null};
     if(partnerError)return respond({error:"Could not read partner references."},500);

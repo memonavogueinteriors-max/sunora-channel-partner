@@ -21,3 +21,24 @@ test('sync request validation rejects null, arrays and non-boolean dry_run value
   assert.equal(validateSheetsSyncRequest([]).valid,false);
   assert.equal(validateSheetsSyncRequest({dry_run:'false'}).valid,false);
 });
+
+import { collectPages } from '../supabase/functions/_shared/sheetsSync.js';
+
+test('collectPages retrieves every row across 500-row pages without silent REST truncation',async()=>{
+  const source=Array.from({length:1205},(_,id)=>({id}));
+  const calls=[];
+  const rows=await collectPages(async(from,to)=>{calls.push([from,to]);return {data:source.slice(from,to+1),error:null};});
+  assert.equal(rows.length,1205);
+  assert.deepEqual(calls,[[0,499],[500,999],[1000,1499]]);
+  assert.deepEqual(rows.map(row=>row.id),source.map(row=>row.id));
+});
+test('collectPages propagates a page error and stops rather than returning partial data',async()=>{
+  let calls=0;
+  await assert.rejects(()=>collectPages(async(from,to)=>{calls++;return from===500?{data:null,error:new Error('page failed')}:{data:Array.from({length:500},(_,id)=>({id:from+id})),error:null};}),/page failed/);
+  assert.equal(calls,2);
+});
+test('collectPages rejects unsafe or non-integer page sizes',async()=>{
+  await assert.rejects(()=>collectPages(async()=>({data:[],error:null}),0),/pageSize/);
+  await assert.rejects(()=>collectPages(async()=>({data:[],error:null}),1001),/pageSize/);
+  await assert.rejects(()=>collectPages(async()=>({data:[],error:null}),1.5),/pageSize/);
+});

@@ -52,3 +52,18 @@ export function validateSheetsSyncRequest(body) {
   }
   return { valid: true, dryRun: body.dry_run !== false };
 }
+
+// Supabase REST has a configured maximum row count; fetch in bounded pages to avoid silent truncation.
+export async function collectPages(fetchPage, pageSize = 500) {
+  if (typeof fetchPage !== 'function') throw new TypeError('fetchPage must be a function.');
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 1000) throw new RangeError('pageSize must be an integer between 1 and 1000.');
+  const allRows = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const result = await fetchPage(offset, offset + pageSize - 1);
+    if (result?.error) throw result.error;
+    if (!Array.isArray(result?.data)) throw new Error('Paged response must contain a data array.');
+    if (result.data.length > pageSize) throw new Error('Paged response exceeded the requested page size.');
+    allRows.push(...result.data);
+    if (result.data.length < pageSize) return allRows;
+  }
+}
