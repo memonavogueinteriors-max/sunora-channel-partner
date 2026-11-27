@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SALES_SHEET_HEADERS, buildSafeSheetsSyncFailure, chunkValues, collectPages, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest } from "../_shared/sheetsSync.js";
+import { SALES_SHEET_HEADERS, buildSafeSheetsSyncFailure, chunkValues, collectPages, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest, verifySheetSyncRows } from "../_shared/sheetsSync.js";
 const corsHeaders = { "Access-Control-Allow-Origin":"https://sunora-channel-partner.vercel.app", "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods":"POST, OPTIONS" };
 function respond(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});}
 function base64Url(bytes:Uint8Array){let binary="";for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");}
@@ -60,12 +60,6 @@ async function applyPlan(spreadsheetId:string,tab:string,token:string,plan:Retur
     await googleRequest(url,token,"POST",{values:plan.appendRows},false);
   }
 }
-function verifyRows(values:string[][],incoming:string[][]){
-  const rowsById=new Map<string,string[][]>();
-  for(const row of values.slice(1)){const id=String(row?.[0]??"");if(!id)continue;rowsById.set(id,[...(rowsById.get(id)||[]),row]);}
-  for(const expected of incoming){const matches=rowsById.get(String(expected[0]))||[];if(matches.length!==1)return false;if(SALES_SHEET_HEADERS.some((_,column)=>String(matches[0]?.[column]??"")!==String(expected[column]??"")))return false;}
-  return true;
-}
 Deno.serve(async(req)=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:corsHeaders});
   if(req.method!=="POST")return respond({error:"Method not allowed."},405);
@@ -116,10 +110,10 @@ Deno.serve(async(req)=>{
         values=await readSheetValues(spreadsheetId,tab,token);
         const plan=planSalesSheetSync(values,mapped.rows);
         if(plan.duplicateExistingIds.length)return respond({error:"Duplicate sale IDs already exist in the sheet. Resolve duplicates before syncing.",duplicate_ids:plan.duplicateExistingIds},409);
-        if(!plan.updateRows.length&&!plan.appendRows.length&&verifyRows(values,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
+        if(!plan.updateRows.length&&!plan.appendRows.length&&verifySheetSyncRows(values,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
         try{await applyPlan(spreadsheetId,tab,token,plan);}catch(error){const status=(error as Error&{status?:number}).status;if(status&&status<500&&status!==429)throw error;}
         const after=await readSheetValues(spreadsheetId,tab,token);
-        if(verifyRows(after,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
+        if(verifySheetSyncRows(after,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
       }
       return respond({success:false,verified:false,error:"Sync could not be verified after three attempts. Retry is safe because rows use stable sale IDs and a service-role lock."},502);
     }finally{try{await admin.rpc("sunora_release_sheets_sync_lock",{p_owner_token:ownerToken});}catch{/* lease expires if release fails */}}
