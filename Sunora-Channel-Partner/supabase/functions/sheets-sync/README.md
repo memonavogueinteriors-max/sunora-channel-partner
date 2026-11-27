@@ -18,6 +18,7 @@ The sales-sync Edge Function and its service-role lock are merged into the repos
 - Every source sale must resolve to a partner record; a missing partner reference fails closed instead of writing blank partner identity columns.
 - Read-back verification checks the exact 12-column header, exactly one row per incoming sale ID, and exact values for all 12 columns. A header drift or duplicate row cannot be reported as verified.
 - The pure sync planner and read-back verifier are covered by regression tests using fixture data; these tests never call Google or Supabase APIs.
+- The Google HTTP request adapter accepts injected `fetch` and backoff dependencies. Mock-fetch tests cover 429/5xx retries, bounded delays, fail-fast 4xx, non-retryable append requests, and empty 204 responses without network access.
 
 ## Request
 
