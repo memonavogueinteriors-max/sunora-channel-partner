@@ -7,7 +7,7 @@ Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
  if(req.method!=="POST")return response({error:"Method not allowed"},405);
  try{
-  const jwt=(req.headers.get("Authorization")||"").replace(/^Bearer\\s+/i,"");
+  const jwt=(req.headers.get("Authorization")||"").replace(/^Bearer\s+/i,"");
   if(!jwt)return response({error:"Authentication required."},401);
   const url=Deno.env.get("SUPABASE_URL"),key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),resend=Deno.env.get("RESEND_API_KEY");
   if(!url||!key||!resend)return response({error:"Email service configuration is missing."},503);
