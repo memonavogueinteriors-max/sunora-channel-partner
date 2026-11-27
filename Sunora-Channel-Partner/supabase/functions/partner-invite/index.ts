@@ -1,6 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { welcomeEmailHtml } from "../_shared/welcome-email.ts";
-import { welcomeEmailHtml } from "../_shared/welcome-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://sunora-channel-partner.vercel.app",
@@ -126,7 +125,7 @@ Deno.serve(async (req) => {
         html: welcomeEmailHtml({
           name: partner.full_name,
           partnerCode: partner.partner_code || "SUNORA Partner",
-          joinDate: new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Dubai", day: "2-digit", month: "short", year: "numeric" }),
+          joinDate: partner.created_at ? new Date(partner.created_at).toLocaleDateString("en-GB", { timeZone: "Asia/Dubai", day: "2-digit", month: "short", year: "numeric" }) : "—",
           actionUrl: linkData.properties.action_link
         })
       }),
