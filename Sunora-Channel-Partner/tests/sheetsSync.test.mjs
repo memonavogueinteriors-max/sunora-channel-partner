@@ -90,6 +90,8 @@ test('sync request validation rejects unknown fields to catch typos',()=>{
 test('read-back verification requires exact header, exactly one stable ID match, and exact row values',()=>{
   const mapped=mapSalesToSheetRows([sale],[partner]).rows;
   assert.equal(verifySheetSyncRows([SALES_SHEET_HEADERS.slice(),mapped[0]],mapped),true);
+  assert.equal(verifySheetSyncRows([SALES_SHEET_HEADERS.slice()],[]),true);
+  assert.equal(verifySheetSyncRows([['wrong','header']],[]),false);
   assert.equal(verifySheetSyncRows([['wrong','header'],mapped[0]],mapped),false);
   assert.equal(verifySheetSyncRows([SALES_SHEET_HEADERS.slice(),mapped[0],mapped[0]],mapped),false);
   assert.equal(verifySheetSyncRows([SALES_SHEET_HEADERS.slice(),mapped[0].slice(0,5)],mapped),false);
