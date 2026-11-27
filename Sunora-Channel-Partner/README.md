@@ -88,7 +88,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
   - Zoho Books readiness helper added: no network/API/write functionality; credentials, OAuth authorization, organization ID, and integration direction remain required.
   - Recursive referral-branch visibility with secure RLS checks.
   - Recursive partner-network branch visibility via a safe display-only RPC, with cycle-safe recursion and no broadening of partners-table RLS — implemented and live; the explicit partner-role guard is applied and read-back verified.
-  - Migration-source reconciliation and clean-install chain — the live database has 15 applied migrations; source now includes the pending Sheets lock migration. Clean-install certification remains incomplete because the starter schema and migrations do not create all live tables.
+  - Migration-source reconciliation and clean-install chain — live has 15 applied migrations, source has 16 including the pending Sheets lock migration; six core live tables are still missing from the starter schema/migration chain. See `docs/category5-clean-install-gap.md` for read-only evidence and remediation steps.
   - Security/performance cleanup and acceptance tests outside Category 2.
 
 ## Google Sheets sync (Category 5)
@@ -108,8 +108,8 @@ The helper checks the required credential fields, OAuth authorization confirmati
 ## Security and performance notes
 
 - Supabase advisor flags `partner_month_sequences` as RLS enabled without policies. This is intentional: client SELECT/INSERT/UPDATE privileges are denied and IDs are allocated through the protected database function.
-- Six `SECURITY DEFINER` functions remain executable by authenticated users for role lookup and guarded sale/payout RPCs; anonymous execution is denied. Review their scopes carefully before changing grants.
-- Leaked-password protection is reported disabled; enablement requires an Auth configuration review and is not yet verified.
+- Current security advisor reports seven authenticated-callable `SECURITY DEFINER` functions. Read-only catalog review confirmed fixed `search_path` and intended guards: identity helpers are read-only; sale creation and payout creation require Staff/Admin; marking a payout paid requires Admin; recursive branch RPC requires the partner role and returns limited display fields. Anonymous execution is denied. These warnings are documented as intentional access paths; no grants were changed in this run.
+- Leaked-password protection is reported disabled; enablement requires an Auth configuration review and is not yet verified. This was not changed because password/login verification is parked under Category 2.
 - The performance advisor reports 24 unused indexes (14 FK-supporting indexes plus 10 pre-existing). Do not drop them without query and FK analysis.
 - Live read-back confirms the duplicate unique index on `commission_payouts.commission_id` was removed while the unique constraint remains.
 - Referral status notifications are in-app only. The trigger function has a fixed `search_path` and execution revoked from `PUBLIC`, `anon`, and `authenticated`. Authenticated notification updates are granted only on `read_at`, constrained by the existing own-row RLS update policy.
