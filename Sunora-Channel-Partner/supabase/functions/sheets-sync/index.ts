@@ -85,7 +85,7 @@ Deno.serve(async(req)=>{
     const dryRun=validation.dryRun===true;
     let sales;
     try{
-      sales=await collectPages((from,to)=>admin.from("sales").select("id,partner_id,invoice_number,invoice_date,product_description,panel_quantity,quantity,invoice_currency,subtotal_ex_vat,vat_amount,total_inc_vat,invoice_amount").order("invoice_date",{ascending:true}).order("id",{ascending:true}).range(from,to));
+      sales=await collectPages((from:number,to:number)=>admin.from("sales").select("id,partner_id,invoice_number,invoice_date,product_description,panel_quantity,quantity,invoice_currency,subtotal_ex_vat,vat_amount,total_inc_vat,invoice_amount").order("invoice_date",{ascending:true}).order("id",{ascending:true}).range(from,to));
     }catch{return respond({error:"Could not read all sales data."},500);}
     const partnerIds=[...new Set((sales||[]).map(s=>s.partner_id).filter(Boolean))];
     const {data:partners,error:partnerError}=partnerIds.length?await admin.from("partners").select("id,partner_code,full_name").in("id",partnerIds):{data:[],error:null};
