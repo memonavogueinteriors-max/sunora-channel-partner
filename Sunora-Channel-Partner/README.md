@@ -83,17 +83,27 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 - **Category 4:** Done & Verified — payout uniqueness migration applied and read-back verified in the live database.
 - **Category 5:** Current focus; remaining implementation and safe verification:
   - Partner referral status/conversion in-app notifications and RLS-scoped partner inbox — implemented and live; no live referral UI/attribution tests performed.
-  - Partner monthly statement PDF export — implemented; email-delivery scaffolding remains (no real emails).
-  - Google Sheets sales-sync Edge Function scaffold proposed in this PR: Admin/Staff-only, dry-run by default, stable sale-ID upsert, read-back verification, retries, and a service-role-only lease. The lock migration is pending review; the function is not deployed and no spreadsheet writes have been performed.
-  - Zoho Books integration scaffolding only, pending credentials and authorization (not implemented yet).
+  - Partner monthly statement PDF export — implemented and covered by tests; a branded monthly-statement email template helper is now added (no email sending or attachment delivery).
+  - Google Sheets sales-sync scaffold — merged to main in PR #16; Admin/Staff-only, dry-run default, stable sale-ID reconciliation, read-back verification, transient retry, and service-role lease. The lock migration remains unapplied; the Edge Function is not deployed and no external spreadsheet writes were performed.
+  - Zoho Books readiness helper added: no network/API/write functionality; credentials, OAuth authorization, organization ID, and integration direction remain required.
   - Recursive referral-branch visibility with secure RLS checks.
   - Recursive partner-network branch visibility via a safe display-only RPC, with cycle-safe recursion and no broadening of partners-table RLS — implemented and live; the explicit partner-role guard is applied and read-back verified.
-  - Migration-source reconciliation and clean-install chain — current source migration list is aligned to the live 15 migrations; a new Sheets lock migration is pending review and clean-install certification remains incomplete.
+  - Migration-source reconciliation and clean-install chain — the live database has 15 applied migrations; source now includes the pending Sheets lock migration. Clean-install certification remains incomplete because the starter schema and migrations do not create all live tables.
   - Security/performance cleanup and acceptance tests outside Category 2.
 
-## Google Sheets sync (Category 5 proposal)
+## Google Sheets sync (Category 5)
+
+PR #16 is merged. The helper tests, full repository tests, Deno type-check, and production build passed in GitHub Actions. The lock migration is still pending and the Edge Function is not deployed; no Google credentials are configured and no spreadsheet writes have been performed.
 
 The current PR adds a sales-only sync scaffold. It excludes partner contact details, notes, authentication, payouts, and commission records. Dry-run is the default and previews five rows without Google API calls. Write mode requires explicit `dry_run: false`, Google service-account and spreadsheet secrets, and the service-role lock migration. The code is not deployed and write mode is not enabled; a Deno check, migration apply, secrets setup, and destination approval are still required.
+
+## Monthly statement email template (Category 5)
+
+The shared template helper builds an escaped, SUNORA-branded statement notice and PDF filename. It does not send emails or attach PDFs. No email provider is configured. Partner invitation/welcome email and Category 2 verification remain parked.
+
+## Zoho Books readiness scaffold (Category 5)
+
+The helper checks the required credential fields, OAuth authorization confirmation, organization ID, and integration direction. It performs no network requests and never enables API writes. The direction (import from Zoho vs export to Zoho) remains undecided.
 
 ## Security and performance notes
 
