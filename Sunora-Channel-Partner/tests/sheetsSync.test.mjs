@@ -42,3 +42,19 @@ test('collectPages rejects unsafe or non-integer page sizes',async()=>{
   await assert.rejects(()=>collectPages(async()=>({data:[],error:null}),1001),/pageSize/);
   await assert.rejects(()=>collectPages(async()=>({data:[],error:null}),1.5),/pageSize/);
 });
+
+import { chunkValues } from '../supabase/functions/_shared/sheetsSync.js';
+
+test('chunkValues splits large partner ID lookups into bounded chunks without loss',()=>{
+  const ids=Array.from({length:1205},(_,id)=>'partner-'+id);
+  const chunks=chunkValues(ids,100);
+  assert.deepEqual(chunks.map(chunk=>chunk.length),[100,100,100,100,100,100,100,100,100,100,100,100,5]);
+  assert.deepEqual(chunks.flat(),ids);
+});
+test('chunkValues handles empty lists and invalid sizes',()=>{
+  assert.deepEqual(chunkValues([]),[]);
+  assert.throws(()=>chunkValues('not-an-array'),/array/);
+  assert.throws(()=>chunkValues([],0),/chunkSize/);
+  assert.throws(()=>chunkValues([],1001),/chunkSize/);
+  assert.throws(()=>chunkValues([],1.2),/chunkSize/);
+});
