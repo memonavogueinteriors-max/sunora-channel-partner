@@ -1,6 +1,6 @@
 # Google Sheets sales sync
 
-The sales-sync Edge Function and its service-role lock are proposed source code only. **Do not deploy or enable write mode until the migration is applied, Deno checks are run, and the spreadsheet/credentials/privacy scope are approved.** Supabase remains the source of truth.
+The sales-sync Edge Function and its service-role lock are merged into the repository but remain undeployed. **Do not deploy or enable write mode until the migration is applied, Deno checks are run, and the spreadsheet/credentials/privacy scope are approved.** Supabase remains the source of truth.
 
 ## Safety controls
 
