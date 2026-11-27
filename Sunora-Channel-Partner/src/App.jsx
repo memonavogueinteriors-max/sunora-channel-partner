@@ -727,6 +727,30 @@ async function sendWelcomeEmailTest() {
   }
 }
 
+async function sendWelcomeEmailTest() {
+  if (!isAdmin || busy) return;
+  setBusy(true);
+  setError('');
+  try {
+    const { data, error: invokeError } = await supabase.functions.invoke('welcome-email-test');
+    if (invokeError) {
+      let message = invokeError.message || 'Test email request failed.';
+      const context = invokeError.context;
+      if (context && typeof context.clone === 'function') {
+        const body = await context.clone().json().catch(() => null);
+        if (body?.error) message = body.error;
+      }
+      throw new Error(message);
+    }
+    if (!data?.success) throw new Error(data?.error || 'Test email delivery was not confirmed.');
+    flash(`Welcome email test sent to ${data.recipient || session?.user?.email}.`);
+  } catch (err) {
+    setError(`Welcome email test failed: ${err.message || 'Please try again.'}`);
+  } finally {
+    setBusy(false);
+  }
+}
+
 async function retryPartnerInvite(partner) {
   if (!isAdmin || busy || !partner || partner.user_id || partner.status !== 'active') return;
   setBusy(true);
@@ -1539,6 +1563,11 @@ async function addPartner(e) {
             <button className="icon-btn" onClick={() => loadData()} title="Refresh data">
               <RefreshCw size={17} />
             </button>
+            {isAdmin && (
+              <button className="secondary-btn top-add" onClick={sendWelcomeEmailTest} disabled={busy} title="Send a branded welcome email test to your own admin email">
+                {busy ? 'Sending test…' : 'Test welcome email'}
+              </button>
+            )}
             {isAdmin && (
               <button className="secondary-btn top-add" onClick={sendWelcomeEmailTest} disabled={busy} title="Send a branded welcome email test to your own admin email">
                 {busy ? 'Sending test…' : 'Test welcome email'}
