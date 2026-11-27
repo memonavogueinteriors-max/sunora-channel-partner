@@ -24,7 +24,13 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Payout regression tests
+      - name: Unit and regression tests
         run: npm test
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Google Sheets Edge Function
+        run: deno check supabase/functions/sheets-sync/index.ts
       - name: Production build
         run: npm run build
