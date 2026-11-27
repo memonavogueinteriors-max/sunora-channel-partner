@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { welcomeEmailHtml } from "../_shared/welcome-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://sunora-channel-partner.vercel.app",
@@ -118,20 +119,15 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "Sunora Partner Portal <partners@sunora.ae>",
+        from: "SUNORA Channel Partner Program <info@sunora.ae>",
         to: [email],
-        subject: "Your Sunora Partner Portal invitation",
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#333">
-            <h2>Welcome to Sunora</h2>
-            <p>Hello ${escapeHtml(partner.full_name)},</p>
-            <p>Your Sunora Partner Portal account has been created.</p>
-            <p>Click below to set your password and access your account.</p>
-            <p><a href="${linkData.properties.action_link}" style="display:inline-block;padding:13px 24px;background:#8b6b35;color:white;text-decoration:none;border-radius:6px">Set Your Password</a></p>
-            <p>If you did not expect this invitation, please ignore this email.</p>
-            <p>Sunora Partner Team</p>
-          </div>
-        `,
+        subject: "Welcome to the SUNORA Channel Partner Program",
+        html: welcomeEmailHtml({
+          name: partner.full_name,
+          partnerCode: partner.partner_code || "SUNORA Partner",
+          joinDate: new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Dubai", day: "2-digit", month: "short", year: "numeric" }),
+          actionUrl: linkData.properties.action_link
+        })
       }),
     });
     if (!emailResponse.ok) throw new Error("Invitation email could not be delivered.");
