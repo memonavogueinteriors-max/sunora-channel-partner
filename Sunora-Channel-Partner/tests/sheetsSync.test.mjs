@@ -43,7 +43,7 @@ test('collectPages rejects unsafe or non-integer page sizes',async()=>{
   await assert.rejects(()=>collectPages(async()=>({data:[],error:null}),1.5),/pageSize/);
 });
 
-import { chunkValues } from '../supabase/functions/_shared/sheetsSync.js';
+import { chunkValues, verifySheetSyncRows } from '../supabase/functions/_shared/sheetsSync.js';
 
 test('chunkValues splits large partner ID lookups into bounded chunks without loss',()=>{
   const ids=Array.from({length:1205},(_,id)=>'partner-'+id);
@@ -74,4 +74,24 @@ test('safe sync failure response contains only a generic message and UUID refere
 
 test('invalid request references are replaced with unavailable',()=>{
   assert.equal(buildSafeSheetsSyncFailure('bad').request_id,'unavailable');
+});
+
+
+
+test('mapping fails closed when a sale partner reference is missing or unresolved',()=>{
+  assert.throws(()=>mapSalesToSheetRows([{...sale,partner_id:''}],[partner]),/known partner/);
+  assert.throws(()=>mapSalesToSheetRows([sale],[]),/known partner/);
+});
+
+test('sync request validation rejects unknown fields to catch typos',()=>{
+  assert.deepEqual(validateSheetsSyncRequest({dry_run:true,write:true}),{valid:false,error:'Unexpected request fields are not allowed.'});
+});
+
+test('read-back verification requires exact header, exactly one stable ID match, and exact row values',()=>{
+  const mapped=mapSalesToSheetRows([sale],[partner]).rows;
+  assert.equal(verifySheetSyncRows([SALES_SHEET_HEADERS.slice(),mapped[0]],mapped),true);
+  assert.equal(verifySheetSyncRows([['wrong','header'],mapped[0]],mapped),false);
+  assert.equal(verifySheetSyncRows([SALES_SHEET_HEADERS.slice(),mapped[0],mapped[0]],mapped),false);
+  assert.equal(verifySheetSyncRows([SALES_SHEET_HEADERS.slice(),mapped[0].slice(0,5)],mapped),false);
+  assert.equal(verifySheetSyncRows([SALES_SHEET_HEADERS.slice(),mapped[0].map((v,i)=>i===5?'wrong-date':v)],mapped),false);
 });
