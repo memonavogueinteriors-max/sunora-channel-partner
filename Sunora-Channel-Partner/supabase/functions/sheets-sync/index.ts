@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SALES_SHEET_HEADERS, mapSalesToSheetRows, planSalesSheetSync } from "../_shared/sheetsSync.js";
+import { SALES_SHEET_HEADERS, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest } from "../_shared/sheetsSync.js";
 const corsHeaders = { "Access-Control-Allow-Origin":"https://sunora-channel-partner.vercel.app", "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods":"POST, OPTIONS" };
 function respond(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});}
 function base64Url(bytes:Uint8Array){let binary="";for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");}
@@ -79,9 +79,10 @@ Deno.serve(async(req)=>{
     if(authError||!authData.user)return respond({error:"Invalid login session."},401);
     const {data:profile,error:profileError}=await admin.from("profiles").select("role").eq("id",authData.user.id).single();
     if(profileError||!["admin","staff"].includes(profile?.role))return respond({error:"Admin or Staff access only."},403);
-    let body:{dry_run?:boolean}={};try{body=await req.json();}catch{return respond({error:"Request body must be JSON."},400);}
-    if(body.dry_run!==undefined&&typeof body.dry_run!=="boolean")return respond({error:"dry_run must be true or false."},400);
-    const dryRun=body.dry_run!==false;
+    let body:unknown={};try{body=await req.json();}catch{return respond({error:"Request body must be JSON."},400);}
+    const validation=validateSheetsSyncRequest(body) as {valid:boolean;error?:string;dryRun?:boolean};
+    if(!validation.valid)return respond({error:validation.error||"Invalid request body."},400);
+    const dryRun=validation.dryRun===true;
     const {data:sales,error:salesError}=await admin.from("sales").select("id,partner_id,invoice_number,invoice_date,product_description,panel_quantity,quantity,invoice_currency,subtotal_ex_vat,vat_amount,total_inc_vat,invoice_amount").order("invoice_date",{ascending:true});
     if(salesError)return respond({error:"Could not read sales data."},500);
     const partnerIds=[...new Set((sales||[]).map(s=>s.partner_id).filter(Boolean))];
