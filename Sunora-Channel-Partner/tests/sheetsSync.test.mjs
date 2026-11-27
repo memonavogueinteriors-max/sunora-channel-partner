@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mapSalesToSheetRows, planSalesSheetSync, SALES_SHEET_HEADERS } from '../supabase/functions/_shared/sheetsSync.js';
+import { mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest, SALES_SHEET_HEADERS } from '../supabase/functions/_shared/sheetsSync.js';
 const sale = { id:'sale-001', partner_id:'partner-001', invoice_number:'SUN-001', invoice_date:'2026-11-27', product_description:'Sunora Panel', panel_quantity:4, invoice_currency:'AED', subtotal_ex_vat:1000, vat_amount:50, total_inc_vat:1050 };
 const partner = { id:'partner-001', partner_code:'CH202611001', full_name:'Test Partner' };
 test('maps a sale to a stable, minimal, 12-column sheet row',()=>{const result=mapSalesToSheetRows([sale],[partner]);assert.equal(result.rows.length,1);assert.equal(result.rows[0].length,SALES_SHEET_HEADERS.length);assert.equal(result.rows[0][0],sale.id);assert.equal(result.rows[0][3],partner.partner_code);assert.equal(result.rows[0][4],partner.full_name);assert.deepEqual(result.duplicateIds,[]);});
@@ -10,3 +10,14 @@ test('retry after a successful append is idempotent and plans no changes',()=>{c
 test('updates existing rows in place and appends missing records',()=>{const original=mapSalesToSheetRows([{...sale,total_inc_vat:1000}],[partner]).rows[0];const changed=mapSalesToSheetRows([sale,{...sale,id:'sale-002',invoice_number:'SUN-002'}],[partner]).rows;const plan=planSalesSheetSync([SALES_SHEET_HEADERS.slice(),original],changed);assert.equal(plan.updateRows.length,1);assert.equal(plan.updateRows[0].rowNumber,2);assert.equal(plan.appendRows.length,1);assert.equal(plan.appendRows[0][0],'sale-002');});
 test('detects duplicate stable IDs already present in the sheet instead of silently choosing',()=>{const row=mapSalesToSheetRows([sale],[partner]).rows[0];const plan=planSalesSheetSync([SALES_SHEET_HEADERS.slice(),row,row],[row]);assert.deepEqual(plan.duplicateExistingIds,['sale-001']);});
 test('RAW row values preserve strings without evaluating formula-like text',()=>{const mapped=mapSalesToSheetRows([{...sale,product_description:'=IMPORTXML("unsafe")'}],[partner]).rows[0];assert.equal(mapped[6],'=IMPORTXML("unsafe")');});
+
+test('sync request validation defaults to dry-run and accepts explicit write mode',()=>{
+  assert.deepEqual(validateSheetsSyncRequest({}),{valid:true,dryRun:true});
+  assert.deepEqual(validateSheetsSyncRequest({dry_run:true}),{valid:true,dryRun:true});
+  assert.deepEqual(validateSheetsSyncRequest({dry_run:false}),{valid:true,dryRun:false});
+});
+test('sync request validation rejects null, arrays and non-boolean dry_run values',()=>{
+  assert.equal(validateSheetsSyncRequest(null).valid,false);
+  assert.equal(validateSheetsSyncRequest([]).valid,false);
+  assert.equal(validateSheetsSyncRequest({dry_run:'false'}).valid,false);
+});
