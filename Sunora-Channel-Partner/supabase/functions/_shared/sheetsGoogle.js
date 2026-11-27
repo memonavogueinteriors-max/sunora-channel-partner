@@ -5,6 +5,7 @@ const defaultWait = ms => new Promise(resolve => setTimeout(resolve, ms));
  * It is intentionally network-agnostic so tests can exercise retries without
  * Google credentials, Deno runtime, or a live spreadsheet.
  */
+/** @param {string} url @param {string} token @param {{method?: string, body?: unknown, retryable?: boolean, fetchImpl?: typeof fetch, wait?: (ms: number) => Promise<void>} } options */
 export async function requestGoogleApi(url, token, {
   method = 'GET',
   body,
