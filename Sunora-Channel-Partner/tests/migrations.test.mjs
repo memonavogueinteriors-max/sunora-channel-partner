@@ -4,7 +4,7 @@ import { readdir, readFile } from 'node:fs/promises';
 
 const migrationDir = new URL('../supabase/migrations/', import.meta.url);
 
-test('migration filenames match the applied live migration history', async () => {
+test('migration filenames match the live source plus the pending Sheets sync lease migration', async () => {
   const files = (await readdir(migrationDir)).filter(file => file.endsWith('.sql')).sort();
   assert.deepEqual(files, [
     '20261126083905_create_partner_referrals_pipeline.sql',
@@ -21,7 +21,8 @@ test('migration filenames match the applied live migration history', async () =>
     '20261126185733_20261126190000_restrict_public_table_privileges.sql',
     '20261126203001_partner_referral_status_notifications.sql',
     '20261126203714_partner_recursive_branch_read.sql',
-    '20261126203945_partner_branch_partner_role_guard.sql'
+    '20261126203945_partner_branch_partner_role_guard.sql',
+    '20261127001400_google_sheets_sync_lock.sql'
   ]);
 });
 
@@ -66,4 +67,16 @@ test('public table ACL hardening removes anon and truncate privileges from expos
   assert.ok(!/^\s*TRUNCATE\b/mi.test(sql));
   assert.ok(!sql.includes('DROP TABLE'));
   assert.ok(!sql.includes('DELETE FROM'));
+});
+
+test('Google Sheets sync lease is service-role-only and client roles cannot access its table or RPCs', async () => {
+  const sql = await readFile(new URL('../supabase/migrations/20261127001400_google_sheets_sync_lock.sql', import.meta.url), 'utf8');
+  assert.ok(sql.includes('ENABLE ROW LEVEL SECURITY'));
+  assert.ok(sql.includes('FROM PUBLIC, anon, authenticated'));
+  assert.ok(sql.includes('TO service_role'));
+  assert.ok(sql.includes("coalesce(auth.role(), '') <> 'service_role'"));
+  assert.ok(sql.includes('p_ttl_seconds < 60 OR p_ttl_seconds > 300'));
+  assert.ok(sql.includes('WHERE lock_id = 1 AND owner_token = p_owner_token'));
+  assert.ok(!sql.includes('GRANT EXECUTE ON FUNCTION public.sunora_acquire_sheets_sync_lock(uuid, integer) TO authenticated'));
+  assert.ok(!sql.includes('GRANT EXECUTE ON FUNCTION public.sunora_release_sheets_sync_lock(uuid) TO authenticated'));
 });
