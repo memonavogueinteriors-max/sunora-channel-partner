@@ -29,7 +29,7 @@ test('source duplicate sale IDs are skipped and reported', () => {
 test('first sync appends new stable IDs and no duplicate incoming rows', () => {
   const header = SALES_SHEET_HEADERS.slice();
   const rows = mapSalesToSheetRows([sale, sale], [partner]).rows;
-  const plan = planSalesSheetSync([header], rows);
+  const plan = planSalesSheetSync([header], [rows[0], rows[0]]);
   assert.equal(plan.appendRows.length, 1);
   assert.deepEqual(plan.updateRows, []);
   assert.deepEqual(plan.duplicateIncomingIds, ['sale-001']);
