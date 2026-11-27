@@ -1,11 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SALES_SHEET_HEADERS, buildSafeSheetsSyncFailure, chunkValues, collectPages, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest } from "../_shared/sheetsSync.js";
+import { requestGoogleApi } from "../_shared/sheetsGoogle.js";
+import { SALES_SHEET_HEADERS, buildSafeSheetsSyncFailure, chunkValues, collectPages, mapSalesToSheetRows, planSalesSheetSync, validateSheetsSyncRequest, verifySheetSyncRows } from "../_shared/sheetsSync.js";
 const corsHeaders = { "Access-Control-Allow-Origin":"https://sunora-channel-partner.vercel.app", "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods":"POST, OPTIONS" };
 function respond(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});}
 function base64Url(bytes:Uint8Array){let binary="";for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");}
 function utf8Base64Url(value:string){return base64Url(new TextEncoder().encode(value));}
 function quoteSheet(tab:string){return "'"+tab.replace(/'/g,"''")+"'";}
-function delay(ms:number){return new Promise(resolve=>setTimeout(resolve,ms));}
 async function googleAccessToken(rawCredentials:string){
   const credentials=JSON.parse(rawCredentials);
   if(!credentials.client_email||!credentials.private_key||credentials.token_uri!=="https://oauth2.googleapis.com/token")throw new Error("Google service-account credentials are incomplete or use an unsupported token endpoint.");
@@ -22,49 +22,27 @@ async function googleAccessToken(rawCredentials:string){
   if(!tokenBody.access_token)throw new Error("Google OAuth response did not include an access token.");
   return tokenBody.access_token as string;
 }
-async function googleRequest(url:string,token:string,method="GET",body?:unknown,retryable=true){
-  for(let attempt=0;attempt<(retryable?3:1);attempt++){
-    try{
-      const response=await fetch(url,{method,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:body===undefined?undefined:JSON.stringify(body)});
-      if(response.ok)return response.status===204?{}:await response.json();
-      const error=new Error("Google Sheets API returned HTTP "+response.status+".") as Error&{status:number};error.status=response.status;
-      if(retryable&&(response.status===429||response.status>=500)&&attempt<2){await delay(250*(attempt+1));continue;}
-      throw error;
-    }catch(error){
-      const status=(error as Error&{status?:number}).status;
-      if(retryable&&(!status||status===429||status>=500)&&attempt<2){await delay(250*(attempt+1));continue;}
-      throw error;
-    }
-  }
-  throw new Error("Google Sheets API retry limit reached.");
-}
 async function readSheetValues(spreadsheetId:string,tab:string,token:string){
   const range=encodeURIComponent(quoteSheet(tab)+"!A:L");
   const url="https://sheets.googleapis.com/v4/spreadsheets/"+encodeURIComponent(spreadsheetId)+"/values/"+range+"?majorDimension=ROWS";
-  const result=await googleRequest(url,token);return Array.isArray(result.values)?result.values as string[][]:[];
+  const result=await requestGoogleApi(url,token);return Array.isArray(result.values)?result.values as string[][]:[];
 }
 async function writeHeader(spreadsheetId:string,tab:string,token:string){
   const range=encodeURIComponent(quoteSheet(tab)+"!A1:L1");
   const url="https://sheets.googleapis.com/v4/spreadsheets/"+encodeURIComponent(spreadsheetId)+"/values/"+range+"?valueInputOption=RAW";
-  await googleRequest(url,token,"PUT",{values:[SALES_SHEET_HEADERS]});
+  await requestGoogleApi(url,token,{method:"PUT",body:{values:[SALES_SHEET_HEADERS]}});
 }
 async function applyPlan(spreadsheetId:string,tab:string,token:string,plan:ReturnType<typeof planSalesSheetSync>){
   if(plan.updateRows.length){
     const data=plan.updateRows.map(row=>({range:quoteSheet(tab)+"!A"+row.rowNumber+":L"+row.rowNumber,values:[row.values]}));
-    await googleRequest("https://sheets.googleapis.com/v4/spreadsheets/"+encodeURIComponent(spreadsheetId)+"/values:batchUpdate",token,"POST",{valueInputOption:"RAW",data});
+    await requestGoogleApi("https://sheets.googleapis.com/v4/spreadsheets/"+encodeURIComponent(spreadsheetId)+"/values:batchUpdate",token,{method:"POST",body:{valueInputOption:"RAW",data}});
   }
   if(plan.appendRows.length){
     const range=encodeURIComponent(quoteSheet(tab)+"!A:L");
     const url="https://sheets.googleapis.com/v4/spreadsheets/"+encodeURIComponent(spreadsheetId)+"/values/"+range+":append?valueInputOption=RAW&insertDataOption=INSERT_ROWS";
     // Do not retry append blindly. Re-read stable IDs after an ambiguous timeout.
-    await googleRequest(url,token,"POST",{values:plan.appendRows},false);
+    await requestGoogleApi(url,token,{method:"POST",body:{values:plan.appendRows},retryable:false});
   }
-}
-function verifyRows(values:string[][],incoming:string[][]){
-  const rowsById=new Map<string,string[][]>();
-  for(const row of values.slice(1)){const id=String(row?.[0]??"");if(!id)continue;rowsById.set(id,[...(rowsById.get(id)||[]),row]);}
-  for(const expected of incoming){const matches=rowsById.get(String(expected[0]))||[];if(matches.length!==1)return false;if(SALES_SHEET_HEADERS.some((_,column)=>String(matches[0]?.[column]??"")!==String(expected[column]??"")))return false;}
-  return true;
 }
 Deno.serve(async(req)=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:corsHeaders});
@@ -97,7 +75,8 @@ Deno.serve(async(req)=>{
         partners.push(...(data||[]));
       }
     }catch{return respond({error:"Could not read all partner references."},500);}
-    const mapped=mapSalesToSheetRows(sales,partners);
+    let mapped: ReturnType<typeof mapSalesToSheetRows>;
+    try{mapped=mapSalesToSheetRows(sales,partners);}catch(error){if(error instanceof Error&&error.message==="Every sale must reference a known partner before sync.")return respond({error:"One or more sales have unresolved partner references. Sync stopped before writing."},409);throw error;}
     if(mapped.duplicateIds.length)return respond({error:"Duplicate sale IDs were returned by the source; sync stopped.",duplicate_ids:mapped.duplicateIds},409);
     if(dryRun)return respond({success:true,dry_run:true,row_count:mapped.rows.length,preview:mapped.rows.slice(0,5),message:"Preview only. No Google Sheet was read or written."});
     const spreadsheetId=Deno.env.get("GOOGLE_SPREADSHEET_ID"),rawCredentials=Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON"),tab=(Deno.env.get("GOOGLE_SHEET_TAB_NAME")||"Sales").trim();
@@ -109,17 +88,19 @@ Deno.serve(async(req)=>{
       const token=await googleAccessToken(rawCredentials);
       let values=await readSheetValues(spreadsheetId,tab,token);
       if(!values.length||!values[0]?.length){await writeHeader(spreadsheetId,tab,token);values=await readSheetValues(spreadsheetId,tab,token);}
-      if(JSON.stringify(values[0]||[])!==JSON.stringify(SALES_SHEET_HEADERS))return respond({error:"Sheet header mismatch. Sync stopped to avoid writing into the wrong layout."},409);
+      if(!verifySheetSyncRows(values,[]))return respond({error:"Sheet header mismatch. Sync stopped to avoid writing into the wrong layout."},409);
       const baselineValues=await readSheetValues(spreadsheetId,tab,token),baselinePlan=planSalesSheetSync(baselineValues,mapped.rows);
       if(baselinePlan.duplicateExistingIds.length)return respond({error:"Duplicate sale IDs already exist in the sheet. Resolve duplicates before syncing.",duplicate_ids:baselinePlan.duplicateExistingIds},409);
       for(let attempt=1;attempt<=3;attempt++){
         values=await readSheetValues(spreadsheetId,tab,token);
+        if(!verifySheetSyncRows(values,[]))return respond({error:"Sheet header changed during sync. Sync stopped."},409);
         const plan=planSalesSheetSync(values,mapped.rows);
         if(plan.duplicateExistingIds.length)return respond({error:"Duplicate sale IDs already exist in the sheet. Resolve duplicates before syncing.",duplicate_ids:plan.duplicateExistingIds},409);
-        if(!plan.updateRows.length&&!plan.appendRows.length&&verifyRows(values,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
+        if(!plan.updateRows.length&&!plan.appendRows.length&&verifySheetSyncRows(values,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
         try{await applyPlan(spreadsheetId,tab,token,plan);}catch(error){const status=(error as Error&{status?:number}).status;if(status&&status<500&&status!==429)throw error;}
         const after=await readSheetValues(spreadsheetId,tab,token);
-        if(verifyRows(after,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
+        if(!verifySheetSyncRows(after,[]))return respond({error:"Sheet header changed during sync. Sync stopped."},409);
+        if(verifySheetSyncRows(after,mapped.rows))return respond({success:true,dry_run:false,verified:true,updated:baselinePlan.updateRows.length,appended:baselinePlan.appendRows.length,attempts:attempt});
       }
       return respond({success:false,verified:false,error:"Sync could not be verified after three attempts. Retry is safe because rows use stable sale IDs and a service-role lock."},502);
     }finally{try{await admin.rpc("sunora_release_sheets_sync_lock",{p_owner_token:ownerToken});}catch{/* lease expires if release fails */}}

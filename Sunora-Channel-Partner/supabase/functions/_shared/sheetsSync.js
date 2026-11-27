@@ -4,16 +4,18 @@ export const SALES_SHEET_HEADERS = Object.freeze([
 ]);
 const cell = value => value == null ? '' : String(value);
 export function mapSalesToSheetRows(sales = [], partners = []) {
-  const partnerById = new Map(partners.map(partner => [String(partner.id), partner]));
+  const partnerById = new Map(partners.map(partner => [String(partner.id).trim(), partner]));
   const seen = new Set(), duplicateIds = [], rows = [];
   for (const sale of sales) {
     const id = cell(sale?.id).trim();
     if (!id) throw new Error('Every sale row must have a stable database ID.');
     if (seen.has(id)) { duplicateIds.push(id); continue; }
     seen.add(id);
-    const partner = partnerById.get(cell(sale.partner_id)) || {};
+    const partnerId = cell(sale?.partner_id).trim();
+    const partner = partnerById.get(partnerId);
+    if (!partnerId || !partner) throw new Error('Every sale must reference a known partner before sync.');
     rows.push([
-      id, cell(sale.invoice_number), cell(sale.partner_id), cell(partner.partner_code),
+      id, cell(sale.invoice_number), partnerId, cell(partner.partner_code),
       cell(partner.full_name), cell(sale.invoice_date), cell(sale.product_description),
       cell(sale.panel_quantity ?? sale.quantity), cell(sale.invoice_currency),
       cell(sale.subtotal_ex_vat), cell(sale.vat_amount),
@@ -47,12 +49,33 @@ export function validateSheetsSyncRequest(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { valid: false, error: 'Request body must be a JSON object.' };
   }
+  const unexpectedKeys = Object.keys(body).filter(key => key !== 'dry_run');
+  if (unexpectedKeys.length) return { valid: false, error: 'Unexpected request fields are not allowed.' };
   if (body.dry_run !== undefined && typeof body.dry_run !== 'boolean') {
     return { valid: false, error: 'dry_run must be true or false.' };
   }
   return { valid: true, dryRun: body.dry_run !== false };
 }
 
+
+// Read-back verification fails closed on header drift, malformed incoming rows, or duplicate IDs.
+export function verifySheetSyncRows(values = [], incomingRows = []) {
+  if (!Array.isArray(values) || !Array.isArray(incomingRows) || !Array.isArray(values[0])) return false;
+  if (JSON.stringify(values[0]) !== JSON.stringify(SALES_SHEET_HEADERS)) return false;
+  if (incomingRows.some(row => !Array.isArray(row) || row.length !== SALES_SHEET_HEADERS.length || !cell(row[0]).trim())) return false;
+  const rowsById = new Map();
+  for (const row of values.slice(1)) {
+    const id = cell(row?.[0]).trim();
+    if (!id) continue;
+    rowsById.set(id, [...(rowsById.get(id) || []), row]);
+  }
+  for (const expected of incomingRows) {
+    const matches = rowsById.get(cell(expected[0]).trim()) || [];
+    if (matches.length !== 1) return false;
+    if (SALES_SHEET_HEADERS.some((_, column) => cell(matches[0]?.[column]) !== cell(expected[column]))) return false;
+  }
+  return true;
+}
 // Supabase REST has a configured maximum row count; fetch in bounded pages to avoid silent truncation.
 export async function collectPages(fetchPage, pageSize = 500) {
   if (typeof fetchPage !== 'function') throw new TypeError('fetchPage must be a function.');
