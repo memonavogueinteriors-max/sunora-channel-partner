@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
         }
         const after = await readSheetValues(spreadsheetId, tab, token);
         if (verifyRows(after, mapped.rows)) {
-          return respond({ success: true, dry_run: false, verified: true, updated: totalUpdated, appended: totalAppended, attempts: attempt });
+          return respond({ success: true, dry_run: false, verified: true, updated: baselinePlan.updateRows.length, appended: baselinePlan.appendRows.length, attempts: attempt });
         }
       }
       return respond({ success: false, verified: false, error: "Sync could not be verified after three attempts. Retry is safe because rows use stable sale IDs and a service-role lock." }, 502);
