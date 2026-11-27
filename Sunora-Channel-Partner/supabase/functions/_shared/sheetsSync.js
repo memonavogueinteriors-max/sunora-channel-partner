@@ -75,3 +75,9 @@ export function chunkValues(values = [], chunkSize = 100) {
   for (let offset = 0; offset < values.length; offset += chunkSize) chunks.push(values.slice(offset, offset + chunkSize));
   return chunks;
 }
+
+
+export function buildSafeSheetsSyncFailure(requestId) {
+  const reference = typeof requestId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId) ? requestId : 'unavailable';
+  return { error: 'Sheets sync failed. Internal details are withheld; check server logs using this reference.', request_id: reference };
+}
