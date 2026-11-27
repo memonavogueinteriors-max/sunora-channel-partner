@@ -95,7 +95,7 @@ Never expose the Supabase service-role key in any `VITE_*` variable or commit se
 
 PR #16 is merged. The helper tests, full repository tests, Deno type-check, and production build passed in GitHub Actions. The lock migration is still pending and the Edge Function is not deployed; no Google credentials are configured and no spreadsheet writes have been performed.
 
-The current PR adds a sales-only sync scaffold. It excludes partner contact details, notes, authentication, payouts, and commission records. Dry-run is the default and previews five rows without Google API calls. Write mode requires explicit `dry_run: false`, Google service-account and spreadsheet secrets, and the service-role lock migration. The code is not deployed and write mode is not enabled; a Deno check, migration apply, secrets setup, and destination approval are still required.
+The merged scaffold is sales-only and excludes partner contact details, notes, authentication, payouts, and commission records. Dry-run is the default and previews five rows without Google API calls. Write mode requires explicit `dry_run: false`, Google service-account and spreadsheet secrets, and the service-role lock migration. The code is not deployed and write mode is not enabled; migration apply, secrets setup, and destination approval are still required.
 
 ## Monthly statement email template (Category 5)
 
