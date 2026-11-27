@@ -90,7 +90,7 @@ Deno.serve(async(req)=>{
     const partnerIds=[...new Set(sales.map(s=>s.partner_id).filter(Boolean))];
     const partners=[];
     try{
-      for(const idChunk of chunkValues(partnerIds,100){
+      for(const idChunk of chunkValues(partnerIds,100)){
         const {data,error}=await admin.from("partners").select("id,partner_code,full_name").in("id",idChunk);
         if(error)throw error;
         partners.push(...(data||[]));
