@@ -37,3 +37,16 @@ test('admin portal exposes the welcome-email test action', async () => {
   assert.ok(app.includes("supabase.functions.invoke('welcome-email-test')"));
   assert.ok(app.includes('Test welcome email'));
 });
+
+test('admin partner registration automatically sends the welcome/login invitation after creation', async () => {
+  const app = await readFile(appPath, 'utf8');
+  const registerStart = app.indexOf('async function addPartner(e)');
+  const registerEnd = app.indexOf('\nasync function ', registerStart + 1);
+  const registration = app.slice(registerStart, registerEnd > registerStart ? registerEnd : undefined);
+  assert.ok(registration.includes(".from('partners')"));
+  assert.ok(registration.includes(".insert(payload)"));
+  assert.ok(registration.includes('if (isAdmin)'));
+  assert.ok(registration.includes('await sendPartnerInvitation(data.id)'));
+  assert.ok(registration.includes('flash(`Partner created and invitation sent: ${data.partner_code}`)'));
+  assert.ok(registration.includes('An Admin must send the login invitation'));
+});
