@@ -27,7 +27,7 @@ test('test-send endpoint emails only the signed-in admin and avoids account crea
   const endpoint = await readFile(testEndpointPath, 'utf8');
   assert.ok(/profile\?\.role\s*!==?\s*["']admin["']/.test(endpoint), 'test endpoint must restrict sends to admin role');
   assert.ok(endpoint.includes('user.user.email'));
-  assert.ok(endpoint.includes('test:true'));
+  assert.ok(endpoint.includes('test: true'));
   assert.ok(!endpoint.includes('auth.admin.createUser'));
   assert.ok(!endpoint.includes('partners'));
 });
