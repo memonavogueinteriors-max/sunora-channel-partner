@@ -25,7 +25,7 @@ test('partner invitation reuses the template and uses the verified sender addres
 
 test('test-send endpoint emails only the signed-in admin and avoids account creation', async () => {
   const endpoint = await readFile(testEndpointPath, 'utf8');
-  assert.ok(endpoint.includes('profile?.role!=="admin"'));
+  assert.ok(/profile\\?\\.role\\s*!==?\\s*[\"']admin[\"']/.test(endpoint), 'test endpoint must restrict sends to admin role');
   assert.ok(endpoint.includes('user.user.email'));
   assert.ok(endpoint.includes('test:true'));
   assert.ok(!endpoint.includes('auth.admin.createUser'));
