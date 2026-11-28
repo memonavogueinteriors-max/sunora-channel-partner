@@ -4,7 +4,6 @@ import { readFile } from 'node:fs/promises';
 
 const templatePath = new URL('../supabase/functions/_shared/welcome-email.ts', import.meta.url);
 const invitePath = new URL('../supabase/functions/partner-invite/index.ts', import.meta.url);
-const testEndpointPath = new URL('../supabase/functions/welcome-email-test/index.ts', import.meta.url);
 const appPath = new URL('../src/App.jsx', import.meta.url);
 
 test('shared welcome email has SUNORA gold branding, partner details and escaping', async () => {
@@ -32,10 +31,10 @@ test('test-send endpoint emails only the signed-in admin and avoids account crea
   assert.ok(!endpoint.includes('partners'));
 });
 
-test('admin portal exposes the welcome-email test action', async () => {
+test('admin portal has no welcome-email test action', async () => {
   const app = await readFile(appPath, 'utf8');
-  assert.ok(app.includes("supabase.functions.invoke('welcome-email-test')"));
-  assert.ok(app.includes('Test welcome email'));
+  assert.ok(!app.includes('Test welcome email'));
+  assert.ok(!app.includes('sendWelcomeEmailTest'));
 });
 
 test('admin partner registration automatically sends the welcome/login invitation after creation', async () => {
